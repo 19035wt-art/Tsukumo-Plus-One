@@ -1,7 +1,24 @@
-modules = ["nodejs-20", "web"]
+entrypoint = "index.html"
+
+modules = ["nodejs-20"]
+
+run = "npm install && npm run dev"
 
 [nix]
-channel = "stable-25_05"
+channel = "stable-24_05"
 
-[agent]
-expertMode = true
+[[ports]]
+localPort = 5173
+externalPort = 5173
+
+[[ports]]
+localPort = 5174
+externalPort = 80
+
+[[ports]]
+localPort = 5175
+externalPort = 3000
+
+[[ports]]
+localPort = 5176
+externalPort = 3001
