@@ -1,5 +1,5 @@
 
-export default class Animation {
+class Animation {
 
     constructor(actions) {
 
@@ -34,3 +34,5 @@ export default class Animation {
     }
 
 }
+
+export default Animation;
