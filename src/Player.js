@@ -119,7 +119,7 @@ export default class Player {
 
             forward,
 
-            this.speed * delta
+            speed * delta
 
         );
 
