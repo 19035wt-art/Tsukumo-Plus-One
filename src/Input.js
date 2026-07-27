@@ -23,6 +23,8 @@ export default class Input {
         //=========================
 
         this.dash = false;
+        this.switchCharacter = false;
+        this.onSwitchCharacter = null;
 
         //=========================
         // 初期化
@@ -149,6 +151,7 @@ export default class Input {
     createButtons() {
 
         this.createDashButton();
+        this.createSwitchCharacterButton();
 
     }
 
@@ -187,6 +190,45 @@ export default class Input {
         button.addEventListener("pointerup", stopDash);
         button.addEventListener("pointerleave", stopDash);
         button.addEventListener("pointercancel", stopDash);
+
+    }
+
+    createSwitchCharacterButton() {
+
+        const button = document.createElement("button");
+
+        button.textContent = "キャラ変更";
+
+        button.style.position = "fixed";
+        button.style.right = "40px";
+        button.style.bottom = "150px";
+
+        button.style.width = "90px";
+        button.style.height = "50px";
+        button.style.padding = "10px";
+
+        button.style.fontSize = "12px";
+        button.style.fontWeight = "bold";
+        button.style.color = "white";
+        button.style.backgroundColor = "#4CAF50";
+        button.style.border = "2px solid #45a049";
+        button.style.borderRadius = "5px";
+
+        button.style.userSelect = "none";
+        button.style.touchAction = "none";
+        button.style.cursor = "pointer";
+
+        document.body.appendChild(button);
+
+        button.addEventListener("click", (e) => {
+
+            e.stopPropagation();
+
+            if (this.onSwitchCharacter) {
+                this.onSwitchCharacter();
+            }
+
+        });
 
     }
 
