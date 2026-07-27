@@ -2,6 +2,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import Animation from "./Animation.js";
+
 export default class Player {
 
     constructor(scene) {
@@ -16,15 +17,31 @@ export default class Player {
 
         this.loader = new GLTFLoader();
 
+        // キャラクター管理
+        this.currentCharacter = "player";
+        this.availableCharacters = ["player", "ShooterA"];
+        this.characterIndex = 0;
+
     }
 
-    async load() {
+    async load(character = "player") {
 
         return new Promise((resolve) => {
 
-            this.loader.load("/models/player.glb", (gltf) => {
+            const modelPath = `/models/${character}.glb`;
+
+            this.loader.load(modelPath, (gltf) => {
+
+                // 既存のモデルを削除
+                if (this.model) {
+                    this.scene.remove(this.model);
+                    if (this.mixer) {
+                        this.mixer.stopAllAction();
+                    }
+                }
 
                 this.model = gltf.scene;
+                this.currentCharacter = character;
 
                 this.scene.add(this.model);
 
@@ -48,6 +65,15 @@ export default class Player {
             });
 
         });
+
+    }
+
+    async switchCharacter() {
+
+        this.characterIndex = (this.characterIndex + 1) % this.availableCharacters.length;
+        const nextCharacter = this.availableCharacters[this.characterIndex];
+
+        await this.load(nextCharacter);
 
     }
 
