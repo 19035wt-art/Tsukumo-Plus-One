@@ -4,6 +4,7 @@ import GameCamera from "./Camera.js";
 import Player from "./Player.js";
 import Input from "./Input.js";
 import World from "./World.js";
+import UI from "./UI.js";
 
 export default class Game {
 
@@ -39,6 +40,7 @@ export default class Game {
         this.clock = new THREE.Clock();
 
         this.input = new Input();
+        this.ui = new UI();
 
     }
 
@@ -49,6 +51,20 @@ export default class Game {
         this.player = new Player(this.scene);
 
         await this.player.load();
+        
+        // UI の初期化
+        this.ui.createHealthBar();
+        this.ui.createAttackButton();
+        this.ui.createSkillButton();
+        
+        // UI コールバック設定
+        this.ui.onAttack = () => {
+            this.handleAttack();
+        };
+        this.ui.onSkill = () => {
+            this.handleSkill();
+        };
+        
         this.cameraController =
             new GameCamera(
                 this.camera,
@@ -58,10 +74,33 @@ export default class Game {
         // キャラクター切り替えコールバック
         this.input.onSwitchCharacter = () => {
             this.player.switchCharacter();
+            this.updateUI();
         };
 
         this.animate();
 
+    }
+
+    updateUI() {
+        this.ui.showCharacterUI(this.player.currentCharacter);
+        this.ui.updateHealthBar(this.player.currentHealth, this.player.maxHealth);
+    }
+
+    handleAttack() {
+        if (this.player.currentCharacter !== "player") {
+            // 攻撃アニメーションを実行
+            if (this.player.actions && this.player.actions["Attack_Loop"]) {
+                this.player.animation.play("Attack_Loop");
+            }
+            console.log(this.player.currentCharacter + " が攻撃した!");
+        }
+    }
+
+    handleSkill() {
+        if (this.player.currentCharacter !== "player") {
+            console.log(this.player.currentCharacter + " がスキルを使用した!");
+            // スキル効果の実装
+        }
     }
 
     animate = () => {
@@ -80,6 +119,9 @@ export default class Game {
         );
 
         this.player.update(delta);
+
+        // UI の更新
+        this.ui.updateHealthBar(this.player.currentHealth, this.player.maxHealth);
 
         this.cameraController.update(this.input);
         this.renderer.render(

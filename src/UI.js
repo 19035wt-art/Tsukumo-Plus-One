@@ -1,7 +1,9 @@
 export default class UI {
 
     constructor() {
-        this.healthBar = null;
+        this.healthBarContainer = null;
+        this.attackButton = null;
+        this.skillButton = null;
         this.healthValue = 100;
         this.maxHealth = 100;
         this.onAttack = null;
@@ -15,13 +17,25 @@ export default class UI {
         container.style.position = "fixed";
         container.style.top = "20px";
         container.style.left = "20px";
-        container.style.width = "200px";
-        container.style.height = "30px";
+        container.style.width = "250px";
+        container.style.height = "35px";
         container.style.backgroundColor = "#333";
         container.style.border = "2px solid #fff";
         container.style.borderRadius = "5px";
         container.style.zIndex = "100";
         container.style.display = "none"; // 初期状態は非表示
+        container.style.fontFamily = "Arial, sans-serif";
+
+        // ラベル
+        const label = document.createElement("div");
+        label.style.position = "absolute";
+        label.style.top = "-25px";
+        label.style.left = "0";
+        label.style.color = "#fff";
+        label.style.fontSize = "14px";
+        label.style.fontWeight = "bold";
+        label.textContent = "HP";
+        container.appendChild(label);
 
         // 体力バーの中身
         const bar = document.createElement("div");
@@ -31,11 +45,24 @@ export default class UI {
         bar.style.backgroundColor = "#4CAF50";
         bar.style.borderRadius = "3px";
         bar.style.transition = "width 0.3s ease";
+        bar.style.display = "flex";
+        bar.style.alignItems = "center";
+        bar.style.justifyContent = "center";
+
+        // HP値テキスト
+        const text = document.createElement("span");
+        text.id = "health-text";
+        text.style.color = "#fff";
+        text.style.fontSize = "12px";
+        text.style.fontWeight = "bold";
+        text.style.textShadow = "1px 1px 2px rgba(0,0,0,0.8)";
+        text.textContent = "100/100";
+        bar.appendChild(text);
 
         container.appendChild(bar);
         document.body.appendChild(container);
 
-        this.healthBar = container;
+        this.healthBarContainer = container;
     }
 
     createAttackButton() {
@@ -59,15 +86,27 @@ export default class UI {
         button.style.touchAction = "none";
         button.style.cursor = "pointer";
         button.style.display = "none"; // 初期状態は非表示
+        button.style.transition = "all 0.2s ease";
 
-        button.addEventListener("click", (e) => {
+        button.addEventListener("pointerdown", (e) => {
             e.stopPropagation();
+            button.style.transform = "scale(0.95)";
+        });
+
+        button.addEventListener("pointerup", (e) => {
+            e.stopPropagation();
+            button.style.transform = "scale(1)";
             if (this.onAttack) {
                 this.onAttack();
             }
         });
 
+        button.addEventListener("pointerleave", () => {
+            button.style.transform = "scale(1)";
+        });
+
         document.body.appendChild(button);
+        this.attackButton = button;
         return button;
     }
 
@@ -92,26 +131,39 @@ export default class UI {
         button.style.touchAction = "none";
         button.style.cursor = "pointer";
         button.style.display = "none"; // 初期状態は非表示
+        button.style.transition = "all 0.2s ease";
 
-        button.addEventListener("click", (e) => {
+        button.addEventListener("pointerdown", (e) => {
             e.stopPropagation();
+            button.style.transform = "scale(0.95)";
+        });
+
+        button.addEventListener("pointerup", (e) => {
+            e.stopPropagation();
+            button.style.transform = "scale(1)";
             if (this.onSkill) {
                 this.onSkill();
             }
         });
 
+        button.addEventListener("pointerleave", () => {
+            button.style.transform = "scale(1)";
+        });
+
         document.body.appendChild(button);
+        this.skillButton = button;
         return button;
     }
 
     updateHealthBar(health, maxHealth) {
-        if (!this.healthBar) return;
+        if (!this.healthBarContainer) return;
 
         this.healthValue = health;
         this.maxHealth = maxHealth;
 
         const percentage = (health / maxHealth) * 100;
-        const bar = this.healthBar.querySelector("#health-bar");
+        const bar = this.healthBarContainer.querySelector("#health-bar");
+        const text = this.healthBarContainer.querySelector("#health-text");
         
         if (bar) {
             bar.style.width = percentage + "%";
@@ -125,37 +177,36 @@ export default class UI {
                 bar.style.backgroundColor = "#ff6b6b"; // 赤
             }
         }
+
+        if (text) {
+            text.textContent = `${Math.ceil(health)}/${Math.ceil(maxHealth)}`;
+        }
     }
 
     showCharacterUI(characterName) {
         // キャラクター非依存の UI
-        if (this.healthBar) {
-            this.healthBar.style.display = "block";
+        if (this.healthBarContainer) {
+            this.healthBarContainer.style.display = "block";
         }
-
-        const attackBtn = document.getElementById("attack-button");
-        const skillBtn = document.getElementById("skill-button");
 
         // ShooterA など、体力バーとボタンが必要なキャラ
         if (characterName !== "player") {
-            if (attackBtn) attackBtn.style.display = "block";
-            if (skillBtn) skillBtn.style.display = "block";
+            if (this.attackButton) this.attackButton.style.display = "block";
+            if (this.skillButton) this.skillButton.style.display = "block";
         } else {
             // player は攻撃ボタン等を非表示
-            if (attackBtn) attackBtn.style.display = "none";
-            if (skillBtn) skillBtn.style.display = "none";
+            if (this.attackButton) this.attackButton.style.display = "none";
+            if (this.skillButton) this.skillButton.style.display = "none";
         }
     }
 
     hideCharacterUI() {
-        if (this.healthBar) {
-            this.healthBar.style.display = "none";
+        if (this.healthBarContainer) {
+            this.healthBarContainer.style.display = "none";
         }
 
-        const attackBtn = document.getElementById("attack-button");
-        const skillBtn = document.getElementById("skill-button");
-        if (attackBtn) attackBtn.style.display = "none";
-        if (skillBtn) skillBtn.style.display = "none";
+        if (this.attackButton) this.attackButton.style.display = "none";
+        if (this.skillButton) this.skillButton.style.display = "none";
     }
 
 }

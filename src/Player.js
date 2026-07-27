@@ -22,6 +22,23 @@ export default class Player {
         this.availableCharacters = ["player", "ShooterA"];
         this.characterIndex = 0;
 
+        // キャラクター固有の設定
+        this.characterConfigs = {
+            "player": {
+                height: 1.8,
+                scale: 1.0
+            },
+            "ShooterA": {
+                height: 1.8,
+                scale: 1.0
+            }
+        };
+
+        // ステータス管理
+        this.maxHealth = 100;
+        this.currentHealth = 100;
+        this.isAlive = true;
+
     }
 
     async load(character = "player") {
@@ -42,6 +59,28 @@ export default class Player {
 
                 this.model = gltf.scene;
                 this.currentCharacter = character;
+                this.currentHealth = this.maxHealth;
+                this.isAlive = true;
+
+                // キャラクターを同じ身長に調整
+                const config = this.characterConfigs[character];
+                if (config) {
+                    this.model.scale.set(config.scale, config.scale, config.scale);
+
+                    // モデルの高さを正規化（ボーンの最大高さを目標高さに合わせる）
+                    let maxY = 0;
+                    this.model.traverse((child) => {
+                        if (child.isMesh) {
+                            const boundingBox = new THREE.Box3().setFromObject(child);
+                            maxY = Math.max(maxY, boundingBox.max.y);
+                        }
+                    });
+
+                    if (maxY > 0) {
+                        const heightScale = config.height / maxY;
+                        this.model.scale.multiplyScalar(heightScale);
+                    }
+                }
 
                 this.scene.add(this.model);
 
@@ -149,5 +188,22 @@ export default class Player {
 
         );
 
+    }
+
+    // 体力管理メソッド
+    takeDamage(damage) {
+        this.currentHealth = Math.max(0, this.currentHealth - damage);
+        if (this.currentHealth <= 0) {
+            this.isAlive = false;
+            this.animation.play("Death_Loop");
+        }
+    }
+
+    heal(amount) {
+        this.currentHealth = Math.min(this.maxHealth, this.currentHealth + amount);
+    }
+
+    getHealthPercentage() {
+        return (this.currentHealth / this.maxHealth) * 100;
     }
 }
