@@ -54,6 +54,12 @@ export default class Game {
                 this.camera,
                 this.player
             );
+
+        // キャラクター切り替えコールバック
+        this.input.onSwitchCharacter = () => {
+            this.player.switchCharacter();
+        };
+
         this.animate();
 
     }
