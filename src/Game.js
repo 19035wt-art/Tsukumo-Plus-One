@@ -1,4 +1,3 @@
-
 import * as THREE from "three";
 import GameCamera from "./Camera.js";
 import Player from "./Player.js";
@@ -64,6 +63,9 @@ export default class Game {
         this.ui.onSkill = () => {
             this.handleSkill();
         };
+
+        // 初期表示をキャラクターに合わせて更新
+        this.updateUI();
         
         this.cameraController =
             new GameCamera(
@@ -72,8 +74,9 @@ export default class Game {
             );
 
         // キャラクター切り替えコールバック
-        this.input.onSwitchCharacter = () => {
-            this.player.switchCharacter();
+        // switchCharacter は async なので await してから UI を更新する
+        this.input.onSwitchCharacter = async () => {
+            await this.player.switchCharacter();
             this.updateUI();
         };
 
@@ -82,6 +85,7 @@ export default class Game {
     }
 
     updateUI() {
+        // キャラクターに応じて UI の表示を更新
         this.ui.showCharacterUI(this.player.currentCharacter);
         this.ui.updateHealthBar(this.player.currentHealth, this.player.maxHealth);
     }
@@ -120,7 +124,7 @@ export default class Game {
 
         this.player.update(delta);
 
-        // UI の更新
+        // UI の更新（HPのみ）
         this.ui.updateHealthBar(this.player.currentHealth, this.player.maxHealth);
 
         this.cameraController.update(this.input);
