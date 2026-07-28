@@ -4,6 +4,7 @@ import Player from "./Player.js";
 import Input from "./Input.js";
 import World from "./World.js";
 import UI from "./UI.js";
+import { Enemy } from "./Enemy";
 
 export default class Game {
 
@@ -37,7 +38,8 @@ export default class Game {
         document.body.appendChild(this.renderer.domElement);
 
         this.clock = new THREE.Clock();
-
+this.enemy = new Enemy(this.scene);
+await this.enemy.load();
         this.input = new Input();
         this.ui = new UI();
 
@@ -66,7 +68,7 @@ export default class Game {
 
         // 初期表示をキャラクターに合わせて更新
         this.updateUI();
-        
+        this.enemy.update(delta);
         this.cameraController =
             new GameCamera(
                 this.camera,
