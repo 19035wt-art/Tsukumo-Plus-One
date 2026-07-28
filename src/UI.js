@@ -66,93 +66,85 @@ export default class UI {
     }
 
     createAttackButton() {
-        const button = document.createElement("button");
-        button.id = "attack-button";
-        button.textContent = "攻撃";
+        // 画像ボタンに差し替え
+        const img = document.createElement("img");
+        img.id = "attack-button";
+        img.src = "/ui/attack.png"; // /ui フォルダ内の画像を想定
+        img.alt = "攻撃";
+        img.title = "攻撃";
 
-        button.style.position = "fixed";
-        button.style.right = "40px";
-        button.style.bottom = "280px";
-        button.style.width = "90px";
-        button.style.height = "50px";
-        button.style.padding = "10px";
-        button.style.fontSize = "12px";
-        button.style.fontWeight = "bold";
-        button.style.color = "white";
-        button.style.backgroundColor = "#ff6b6b";
-        button.style.border = "2px solid #ff5252";
-        button.style.borderRadius = "5px";
-        button.style.userSelect = "none";
-        button.style.touchAction = "none";
-        button.style.cursor = "pointer";
-        button.style.display = "none"; // 初期状態は非表示
-        button.style.transition = "all 0.2s ease";
+        img.style.position = "fixed";
+        img.style.right = "40px";
+        img.style.bottom = "280px";
+        img.style.width = "90px";
+        img.style.height = "90px";
+        img.style.userSelect = "none";
+        img.style.touchAction = "none";
+        img.style.cursor = "pointer";
+        img.style.display = "none"; // 初期状態は非表示
+        img.style.transition = "transform 0.08s ease";
 
-        button.addEventListener("pointerdown", (e) => {
+        img.addEventListener("pointerdown", (e) => {
             e.stopPropagation();
-            button.style.transform = "scale(0.95)";
+            img.style.transform = "scale(0.95)";
         });
 
-        button.addEventListener("pointerup", (e) => {
+        img.addEventListener("pointerup", (e) => {
             e.stopPropagation();
-            button.style.transform = "scale(1)";
+            img.style.transform = "scale(1)";
             if (this.onAttack) {
                 this.onAttack();
             }
         });
 
-        button.addEventListener("pointerleave", () => {
-            button.style.transform = "scale(1)";
+        img.addEventListener("pointerleave", () => {
+            img.style.transform = "scale(1)";
         });
 
-        document.body.appendChild(button);
-        this.attackButton = button;
-        return button;
+        document.body.appendChild(img);
+        this.attackButton = img;
+        return img;
     }
 
     createSkillButton() {
-        const button = document.createElement("button");
-        button.id = "skill-button";
-        button.textContent = "スキル";
+        // 画像ボタンに差し替え
+        const img = document.createElement("img");
+        img.id = "skill-button";
+        img.src = "/ui/skill.png"; // /ui フォルダ内の画像を想定
+        img.alt = "スキル";
+        img.title = "スキル";
 
-        button.style.position = "fixed";
-        button.style.right = "40px";
-        button.style.bottom = "220px";
-        button.style.width = "90px";
-        button.style.height = "50px";
-        button.style.padding = "10px";
-        button.style.fontSize = "12px";
-        button.style.fontWeight = "bold";
-        button.style.color = "white";
-        button.style.backgroundColor = "#2196F3";
-        button.style.border = "2px solid #1976D2";
-        button.style.borderRadius = "5px";
-        button.style.userSelect = "none";
-        button.style.touchAction = "none";
-        button.style.cursor = "pointer";
-        button.style.display = "none"; // 初期状態は非表示
-        button.style.transition = "all 0.2s ease";
+        img.style.position = "fixed";
+        img.style.right = "40px";
+        img.style.bottom = "220px";
+        img.style.width = "90px";
+        img.style.height = "90px";
+        img.style.userSelect = "none";
+        img.style.touchAction = "none";
+        img.style.cursor = "pointer";
+        img.style.display = "none"; // 初期状態は非表示
+        img.style.transition = "transform 0.08s ease";
 
-        button.addEventListener("pointerdown", (e) => {
+        img.addEventListener("pointerdown", (e) => {
             e.stopPropagation();
-            button.style.transform = "scale(0.95)";
+            img.style.transform = "scale(0.95)";
         });
 
-        button.addEventListener("pointerup", (e) => {
+        img.addEventListener("pointerup", (e) => {
             e.stopPropagation();
-            button.style.transform = "scale(1)";
+            img.style.transform = "scale(1)";
             if (this.onSkill) {
                 this.onSkill();
             }
         });
 
-        button.addEventListener("pointerleave", () => {
-            button.style.transform = "scale(1)";
+        img.addEventListener("pointerleave", () => {
+            img.style.transform = "scale(1)";
         });
 
-        document.body.appendChild(button);
-        this.skillButton = button;
-        return button;
+        document.body.appendChild(img);
+        this.skillButton = img;
+        return img;
     }
 
     updateHealthBar(health, maxHealth) {
