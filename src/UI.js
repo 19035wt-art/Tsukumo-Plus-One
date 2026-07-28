@@ -176,22 +176,22 @@ export default class UI {
     }
 
     showCharacterUI(characterName) {
-        // キャラクター非依存の UI
-        if (this.healthBarContainer) {
-            this.healthBarContainer.style.display = "block";
-        }
-
-        // ShooterA など、体力バーとボタンが必要なキャラ
         if (characterName !== "player") {
+            // ShooterA などは HP とボタンを表示
+            if (this.healthBarContainer) {
+                this.healthBarContainer.style.display = "block";
+            }
             if (this.attackButton) this.attackButton.style.display = "block";
             if (this.skillButton) this.skillButton.style.display = "block";
         } else {
-            // player は攻撃ボタン等を非表示
+            // player は HP・ボタンとも非表示
+            if (this.healthBarContainer) {
+                this.healthBarContainer.style.display = "none";
+            }
             if (this.attackButton) this.attackButton.style.display = "none";
             if (this.skillButton) this.skillButton.style.display = "none";
         }
     }
-
     hideCharacterUI() {
         if (this.healthBarContainer) {
             this.healthBarContainer.style.display = "none";
