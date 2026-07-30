@@ -4,7 +4,7 @@ import Player from "./Player.js";
 import Input from "./Input.js";
 import World from "./World.js";
 import UI from "./UI.js";
-import { Enemy } from "./Enemy";
+import { Enemy } from "./Enemy.js";
 
 export default class Game {
 
@@ -32,16 +32,32 @@ export default class Game {
         );
 
         this.renderer.setPixelRatio(window.devicePixelRatio);
-
         this.renderer.shadowMap.enabled = true;
 
         document.body.appendChild(this.renderer.domElement);
 
         this.clock = new THREE.Clock();
-this.enemy = new Enemy(this.scene);
-await this.enemy.load();
+
         this.input = new Input();
         this.ui = new UI();
+
+        // Enemy生成だけ行う
+        this.enemy = new Enemy(this.scene);
+
+        // リサイズ対応
+        window.addEventListener("resize", () => {
+
+            this.camera.aspect =
+                window.innerWidth / window.innerHeight;
+
+            this.camera.updateProjectionMatrix();
+
+            this.renderer.setSize(
+                window.innerWidth,
+                window.innerHeight
+            );
+
+        });
 
     }
 
@@ -52,34 +68,37 @@ await this.enemy.load();
         this.player = new Player(this.scene);
 
         await this.player.load();
-        
-        // UI の初期化
-        this.ui.createHealthBar();
-        this.ui.createAttackButton();
-        this.ui.createSkillButton();
-        
-        // UI コールバック設定
-        this.ui.onAttack = () => {
-            this.handleAttack();
-        };
-        this.ui.onSkill = () => {
-            this.handleSkill();
-        };
 
-        // 初期表示をキャラクターに合わせて更新
-        this.updateUI();
-        this.enemy.update(delta);
+        // Enemyモデル読み込み
+        await this.enemy.load();
+
         this.cameraController =
             new GameCamera(
                 this.camera,
                 this.player
             );
 
-        // キャラクター切り替えコールバック
-        // switchCharacter は async なので await してから UI を更新する
+        // UI
+        this.ui.createHealthBar();
+        this.ui.createAttackButton();
+        this.ui.createSkillButton();
+
+        this.ui.onAttack = () => {
+            this.handleAttack();
+        };
+
+        this.ui.onSkill = () => {
+            this.handleSkill();
+        };
+
+        this.updateUI();
+
         this.input.onSwitchCharacter = async () => {
+
             await this.player.switchCharacter();
+
             this.updateUI();
+
         };
 
         this.animate();
@@ -87,33 +106,62 @@ await this.enemy.load();
     }
 
     updateUI() {
-        // キャラクターに応じて UI の表示を更新
-        this.ui.showCharacterUI(this.player.currentCharacter);
-        this.ui.updateHealthBar(this.player.currentHealth, this.player.maxHealth);
+
+        this.ui.showCharacterUI(
+            this.player.currentCharacter
+        );
+
+        this.ui.updateHealthBar(
+            this.player.currentHealth,
+            this.player.maxHealth
+        );
+
     }
 
     handleAttack() {
+
         if (this.player.currentCharacter !== "player") {
-            // 攻撃アニメーションを実行
-            if (this.player.actions && this.player.actions["Attack_Loop"]) {
-                this.player.animation.play("Attack_Loop");
+
+            if (
+                this.player.actions &&
+                this.player.actions["Attack_Loop"]
+            ) {
+
+                this.player.animation.play(
+                    "Attack_Loop"
+                );
+
             }
-            console.log(this.player.currentCharacter + " が攻撃した!");
+
+            console.log(
+                this.player.currentCharacter +
+                " が攻撃した!"
+            );
+
         }
+
     }
 
     handleSkill() {
+
         if (this.player.currentCharacter !== "player") {
-            console.log(this.player.currentCharacter + " がスキルを使用した!");
-            // スキル効果の実装
+
+            console.log(
+                this.player.currentCharacter +
+                " がスキルを使用した!"
+            );
+
         }
+
     }
 
     animate = () => {
 
         requestAnimationFrame(this.animate);
 
-        const delta = this.clock.getDelta();
+        const delta =
+            this.clock.getDelta();
+
         this.player.move(
 
             this.input.x,
@@ -126,10 +174,18 @@ await this.enemy.load();
 
         this.player.update(delta);
 
-        // UI の更新（HPのみ）
-        this.ui.updateHealthBar(this.player.currentHealth, this.player.maxHealth);
+        // Enemy更新
+        this.enemy.update(delta);
 
-        this.cameraController.update(this.input);
+        this.ui.updateHealthBar(
+            this.player.currentHealth,
+            this.player.maxHealth
+        );
+
+        this.cameraController.update(
+            this.input
+        );
+
         this.renderer.render(
             this.scene,
             this.camera
