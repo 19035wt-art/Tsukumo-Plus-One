@@ -82,14 +82,13 @@ export default class Game {
         this.ui.createHealthBar();
         this.ui.createAttackButton();
         this.ui.createSkillButton();
+ui.onAttack = () => {
+    player.attack();
+};
 
-        this.ui.onAttack = () => {
-            this.handleAttack();
-        };
-
-        this.ui.onSkill = () => {
-            this.handleSkill();
-        };
+ui.onSkill = () => {
+    player.useSkill();
+};
 
         this.updateUI();
 
