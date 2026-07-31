@@ -16,7 +16,11 @@ export default class Player {
         this.speed = 3;
 
         this.loader = new GLTFLoader();
+this.isAttacking = false;
+this.isUsingSkill = false;
 
+this.skillCooldown = 0;
+this.skillCooldownMax = 5; // 5秒
         // キャラクター管理
         this.currentCharacter = "player";
         this.availableCharacters = ["player", "ShooterA"];
@@ -117,12 +121,37 @@ export default class Player {
     }
 
     update(delta) {
-
-        if (this.mixer) {
+         if (this.mixer) {
 
             this.mixer.update(delta);
 
         }
+if (this.skillCooldown > 0) {
+
+    this.skillCooldown -= delta;
+
+}
+        this.mixer.addEventListener("finished", (e) => {
+
+    if (e.action === this.actions.attack) {
+
+        this.isAttacking = false;
+
+    }
+
+    if (e.action === this.actions.skill) {
+
+        this.isUsingSkill = false;
+
+    }
+
+});
+        if (this.isAttacking || this.isUsingSkill) {
+
+    return;
+
+}
+       
 
     }
 
@@ -198,7 +227,28 @@ export default class Player {
             this.animation.play("Death_Loop");
         }
     }
+attack() {
 
+    if (this.isAttacking || this.isUsingSkill) return;
+
+    this.isAttacking = true;
+
+    this.animation.play("attack");
+
+}
+   useSkill() {
+
+    if (this.isAttacking || this.isUsingSkill) return;
+
+    if (this.skillCooldown > 0) return;
+
+    this.isUsingSkill = true;
+
+    this.skillCooldown = this.skillCooldownMax;
+
+    this.animation.play("skill");
+
+} 
     heal(amount) {
         this.currentHealth = Math.min(this.maxHealth, this.currentHealth + amount);
     }
