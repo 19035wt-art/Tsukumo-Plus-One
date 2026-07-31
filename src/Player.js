@@ -121,7 +121,22 @@ this.skillCooldownMax = 5; // 5秒
     }
 
     update(delta) {
-         if (this.mixer) {
+    if (this.input.attack) {
+
+    this.attack();
+
+    this.input.attack = false;
+
+}
+
+if (this.input.useSkill) {
+
+    this.useSkill();
+
+    this.input.useSkill = false;
+
+}
+        if (this.mixer) {
 
             this.mixer.update(delta);
 
