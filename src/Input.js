@@ -23,6 +23,8 @@ export default class Input {
         //=========================
 
         this.dash = false;
+        this.attack = false;
+this.useSkill = false;
         this.switchCharacter = false;
         this.onSwitchCharacter = null;
 
@@ -152,9 +154,63 @@ export default class Input {
 
         this.createDashButton();
         this.createSwitchCharacterButton();
-
+this.createSkillButton();
+    this.createSwitchCharacterButton();
     }
+createAttackButton() {
 
+    const button = document.createElement("img");
+
+    button.src = "/ui/attack.png";
+
+    button.style.position = "fixed";
+    button.style.right = "150px";
+    button.style.bottom = "40px";
+
+    button.style.width = "90px";
+    button.style.height = "90px";
+
+    button.style.userSelect = "none";
+    button.style.touchAction = "none";
+
+    document.body.appendChild(button);
+
+    button.addEventListener("pointerdown", (e) => {
+
+        e.stopPropagation();
+
+        this.attack = true;
+
+    });
+
+}
+ createSkillButton() {
+
+    const button = document.createElement("img");
+
+    button.src = "/ui/skill.png";
+
+    button.style.position = "fixed";
+    button.style.right = "260px";
+    button.style.bottom = "40px";
+
+    button.style.width = "90px";
+    button.style.height = "90px";
+
+    button.style.userSelect = "none";
+    button.style.touchAction = "none";
+
+    document.body.appendChild(button);
+
+    button.addEventListener("pointerdown", (e) => {
+
+        e.stopPropagation();
+
+        this.useSkill = true;
+
+    });
+
+}   
     createDashButton() {
 
         const button = document.createElement("img");
