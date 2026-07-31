@@ -121,7 +121,11 @@ this.skillCooldownMax = 5; // 5秒
     }
 
     update(delta) {
+if (this.mixer) {
 
+            this.mixer.update(delta);
+
+        }
 if (this.skillCooldown > 0) {
 
     this.skillCooldown -= delta;
