@@ -31,9 +31,11 @@ export default class Player {
             "player": {
                 height: 1.8,
                 scale: 1.0,
-                attackAnim: null,           // 攻撃モーションなし
-                skillAnim: null,            // スキルモーションなし
-                skillCooldownMax: 0,        // クールタイム(秒)
+                attackAnim: null,
+                skillAnim: null,
+                skillCooldownMax: 0,
+                attackPower: 0,
+                attackRange: 0,
             },
             "ShooterA": {
                 height: 1.8,
@@ -41,8 +43,14 @@ export default class Player {
                 attackAnim: "Punch_Cross",
                 skillAnim: "OverhandThrow",
                 skillCooldownMax: 5,
+                attackPower: 20,
+                attackRange: 2.5,
             }
         };
+
+        // 攻撃ヒット時のコールバック (power, range) => void
+        // Game.js から登録して距離チェック・ダメージ適用を行う
+        this.onAttackHit = null;
 
         // ステータス管理
         this.maxHealth = 100;
@@ -253,8 +261,14 @@ export default class Player {
 
         this.isAttacking = true;
 
+        // configから攻撃パラメータを取得してヒット判定コールバックを呼ぶ
+        const config = this.characterConfigs[this.currentCharacter];
+        if (this.onAttackHit && config?.attackPower > 0) {
+            this.onAttackHit(config.attackPower, config.attackRange);
+        }
+
         // configから攻撃アニメーション名を取得
-        const attackAnim = this.characterConfigs[this.currentCharacter]?.attackAnim;
+        const attackAnim = config?.attackAnim;
 
         if (attackAnim && this.actions?.[attackAnim]) {
             const action = this.actions[attackAnim];

@@ -91,6 +91,18 @@ this.ui.onSkill = () => {
     this.player.useSkill();
 };
 
+        // 攻撃ヒット判定：プレイヤーと敵の距離をチェックしてダメージを適用
+        this.player.onAttackHit = (power, range) => {
+            if (!this.enemy.isAlive) return;
+            if (!this.enemy.model || !this.player.model) return;
+            const dist = this.player.model.position.distanceTo(
+                this.enemy.model.position
+            );
+            if (dist <= range) {
+                this.enemy.takeDamage(power);
+            }
+        };
+
         this.updateUI();
 
         this.input.onSwitchCharacter = async () => {
