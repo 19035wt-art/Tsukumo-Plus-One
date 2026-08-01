@@ -1,4 +1,3 @@
-
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import Animation from "./Animation.js";
@@ -16,11 +15,11 @@ export default class Player {
         this.speed = 3;
 
         this.loader = new GLTFLoader();
-this.isAttacking = false;
-this.isUsingSkill = false;
+        this.isAttacking = false;
+        this.isUsingSkill = false;
 
-this.skillCooldown = 0;
-this.skillCooldownMax = 5; // 5秒
+        this.skillCooldown = 0;
+        this.skillCooldownMax = 5; // 5秒
         // キャラクター管理
         this.currentCharacter = "player";
         this.availableCharacters = ["player", "ShooterA"];
@@ -121,42 +120,53 @@ this.skillCooldownMax = 5; // 5秒
     }
 
     update(delta) {
-if (this.mixer) {
+        if (this.mixer) {
 
             this.mixer.update(delta);
 
         }
-if (this.skillCooldown > 0) {
+        if (this.skillCooldown > 0) {
 
-    this.skillCooldown -= delta;
+            this.skillCooldown -= delta;
 
-}
+        }
+
+        // アニメーション完了イベントのハンドリングを汎用化
         this.mixer.addEventListener("finished", (e) => {
+            // e.action からクリップ名を取り出す（互換性のため複数プロパティを試す）
+            let clipName = null;
+            try {
+                if (e.action && typeof e.action.getClip === 'function') {
+                    clipName = e.action.getClip().name;
+                } else if (e.action && e.action._clip && e.action._clip.name) {
+                    clipName = e.action._clip.name;
+                }
+            } catch (err) {
+                // ignore
+            }
 
-    if (e.action === this.actions.attack) {
+            // 攻撃用のアニメーション名を列挙（キャラによって名前が違うためここで扱う）
+            const attackNames = ["attack", "Puch_Cross"];
 
-        this.isAttacking = false;
+            if (clipName && attackNames.includes(clipName)) {
+                this.isAttacking = false;
+            }
 
-    }
+            if (clipName === "skill") {
+                this.isUsingSkill = false;
+            }
 
-    if (e.action === this.actions.skill) {
-
-        this.isUsingSkill = false;
-
-    }
-
-});
+        });
         if (this.isAttacking || this.isUsingSkill) {
 
-    return;
+            return;
 
-}
-       
+        }
 
     }
 
     move(x, y, delta, cameraYaw, dash = false) {
-  
+
         if (!this.model) return;
 
         const dir = new THREE.Vector2(x, -y);
@@ -227,28 +237,43 @@ if (this.skillCooldown > 0) {
             this.animation.play("Death_Loop");
         }
     }
-attack() {
+    attack() {
 
-    if (this.isAttacking || this.isUsingSkill) return;
+        if (this.isAttacking || this.isUsingSkill) return;
 
-    this.isAttacking = true;
+        this.isAttacking = true;
 
-    this.animation.play("attack");
+        // キャラクターごとの攻撃アニメーション名を決定
+        let animName = "attack";
+        if (this.currentCharacter && (this.currentCharacter === "ShooterA" || this.currentCharacter.toLowerCase() === "shootera")) {
+            animName = "Puch_Cross"; // ShooterA の攻撃モーション名
+        }
 
-}
+        // 存在するアクション名から再生（無ければフォールバック）
+        if (this.actions && this.actions[animName]) {
+            this.animation.play(animName);
+        } else if (this.actions && this.actions["attack"]) {
+            // フォールバック
+            this.animation.play("attack");
+        } else {
+            console.warn(`Attack animation not found for character: ${this.currentCharacter}`);
+            this.isAttacking = false;
+        }
+
+    }
    useSkill() {
 
-    if (this.isAttacking || this.isUsingSkill) return;
+        if (this.isAttacking || this.isUsingSkill) return;
 
-    if (this.skillCooldown > 0) return;
+        if (this.skillCooldown > 0) return;
 
-    this.isUsingSkill = true;
+        this.isUsingSkill = true;
 
-    this.skillCooldown = this.skillCooldownMax;
+        this.skillCooldown = this.skillCooldownMax;
 
-    this.animation.play("skill");
+        this.animation.play("skill");
 
-} 
+    } 
     heal(amount) {
         this.currentHealth = Math.min(this.maxHealth, this.currentHealth + amount);
     }
