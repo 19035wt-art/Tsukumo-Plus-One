@@ -26,14 +26,19 @@ export default class Player {
         this.characterIndex = 0;
 
         // キャラクター固有の設定
+        // 新キャラ追加時はここにエントリを追加するだけでOK
         this.characterConfigs = {
             "player": {
                 height: 1.8,
-                scale: 1.0
+                scale: 1.0,
+                attackAnim: null,       // 攻撃モーションなし
+                skillAnim: null,        // スキルモーションなし
             },
             "ShooterA": {
                 height: 1.8,
-                scale: 1.0
+                scale: 1.0,
+                attackAnim: "Punch_Cross",
+                skillAnim: "OverThrow",
             }
         };
 
@@ -112,12 +117,17 @@ export default class Player {
                         }
                     } catch (err) { /* ignore */ }
 
-                    const attackNames = ["attack", "Punch_Cross"];
-                    if (clipName && attackNames.includes(clipName)) {
+                    // 全キャラの攻撃・スキルアニメーション名をconfigから動的に取得
+                    const allAttackAnims = Object.values(this.characterConfigs)
+                        .map(c => c.attackAnim).filter(Boolean);
+                    const allSkillAnims = Object.values(this.characterConfigs)
+                        .map(c => c.skillAnim).filter(Boolean);
+
+                    if (clipName && allAttackAnims.includes(clipName)) {
                         this.isAttacking = false;
                         this.animation.play("Idle_Loop");
                     }
-                    if (clipName === "skill") {
+                    if (clipName && allSkillAnims.includes(clipName)) {
                         this.isUsingSkill = false;
                         this.animation.play("Idle_Loop");
                     }
@@ -241,23 +251,14 @@ export default class Player {
 
         this.isAttacking = true;
 
-        // キャラクターごとの攻撃アニメーション名を決定
-        let animName = "attack";
-        if (this.currentCharacter && (this.currentCharacter === "ShooterA" || this.currentCharacter.toLowerCase() === "shootera")) {
-            animName = "Punch_Cross"; // ShooterA の攻撃モーション名
-        }
+        // configから攻撃アニメーション名を取得
+        const attackAnim = this.characterConfigs[this.currentCharacter]?.attackAnim;
 
-        // 存在するアクション名から再生（無ければフォールバック）
-        const actionKey = (this.actions && this.actions[animName])
-            ? animName
-            : (this.actions && this.actions["attack"]) ? "attack" : null;
-
-        if (actionKey) {
-            // LoopOnce に設定して最後のフレームで止める
-            const action = this.actions[actionKey];
+        if (attackAnim && this.actions?.[attackAnim]) {
+            const action = this.actions[attackAnim];
             action.setLoop(THREE.LoopOnce);
             action.clampWhenFinished = true;
-            this.animation.play(actionKey);
+            this.animation.play(attackAnim);
         } else {
             console.warn(`Attack animation not found for character: ${this.currentCharacter}`);
             this.isAttacking = false;
@@ -274,12 +275,18 @@ export default class Player {
 
         this.skillCooldown = this.skillCooldownMax;
 
-        if (this.actions && this.actions["skill"]) {
-            const action = this.actions["skill"];
+        // configからスキルアニメーション名を取得
+        const skillAnim = this.characterConfigs[this.currentCharacter]?.skillAnim;
+
+        if (skillAnim && this.actions?.[skillAnim]) {
+            const action = this.actions[skillAnim];
             action.setLoop(THREE.LoopOnce);
             action.clampWhenFinished = true;
+            this.animation.play(skillAnim);
+        } else {
+            console.warn(`Skill animation not found for character: ${this.currentCharacter}`);
+            this.isUsingSkill = false;
         }
-        this.animation.play("skill");
 
     } 
     heal(amount) {
