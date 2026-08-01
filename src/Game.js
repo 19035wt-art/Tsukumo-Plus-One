@@ -41,8 +41,8 @@ export default class Game {
         this.input = new Input();
         this.ui = new UI();
 
-        // Enemy生成だけ行う
-        this.enemy = new Enemy(this.scene);
+        // 複数敵を管理する配列
+        this.enemies = [];
 
         // リサイズ対応
         window.addEventListener("resize", () => {
@@ -69,8 +69,17 @@ export default class Game {
 
         await this.player.load();
 
-        // Enemyモデル読み込み
-        await this.enemy.load();
+        // Enemyモデル読み込み（複数体）
+        // ここで出現位置を指定して複数体を生成する
+        const positions = [
+            { x: 5, y: 0, z: -2 },
+            { x: 7, y: 0, z: 0 },
+            { x: 5, y: 0, z: 2 },
+        ];
+
+        // 並列でロードして配列に格納
+        this.enemies = positions.map(() => new Enemy(this.scene));
+        await Promise.all(this.enemies.map((e, i) => e.load("enemy1", positions[i])));
 
         this.cameraController =
             new GameCamera(
@@ -93,14 +102,20 @@ this.ui.onSkill = () => {
 
         // 攻撃ヒット判定：プレイヤーと敵の距離をチェックしてダメージを適用
         this.player.onAttackHit = (power, range) => {
-            if (!this.enemy.isAlive) return;
-            if (!this.enemy.model || !this.player.model) return;
-            const dist = this.player.model.position.distanceTo(
-                this.enemy.model.position
-            );
-            if (dist <= range) {
-                this.enemy.takeDamage(power);
-            }
+            if (!this.enemies || this.enemies.length === 0) return;
+            if (!this.player.model) return;
+
+            // プレイヤーの攻撃範囲内にいるすべての敵にダメージを適用する
+            this.enemies.forEach((enemy) => {
+                if (!enemy.isAlive) return;
+                if (!enemy.model) return;
+                const dist = this.player.model.position.distanceTo(
+                    enemy.model.position
+                );
+                if (dist <= range) {
+                    enemy.takeDamage(power);
+                }
+            });
         };
 
         this.updateUI();
@@ -186,8 +201,10 @@ this.ui.onSkill = () => {
 
         this.player.update(delta);
 
-        // Enemy更新
-        this.enemy.update(delta);
+        // Enemy更新（複数体対応）
+        if (this.enemies && this.enemies.length) {
+            this.enemies.forEach((e) => e.update(delta));
+        }
 
         this.ui.updateHealthBar(
             this.player.currentHealth,
