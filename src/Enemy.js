@@ -26,7 +26,7 @@ export class Enemy {
                 height: 1.8,
                 maxHealth: 100,
                 idleAnim: "Zombie_Idle_Loop",
-                hitAnim: "hit_chest",
+                hitAnim: "Hit_Chest",
             },
         };
 
