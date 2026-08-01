@@ -112,12 +112,14 @@ export default class Player {
                         }
                     } catch (err) { /* ignore */ }
 
-                    const attackNames = ["attack", "Puch_Cross"];
+                    const attackNames = ["attack", "Punch_Cross"];
                     if (clipName && attackNames.includes(clipName)) {
                         this.isAttacking = false;
+                        this.animation.play("Idle_Loop");
                     }
                     if (clipName === "skill") {
                         this.isUsingSkill = false;
+                        this.animation.play("Idle_Loop");
                     }
                 });
 
@@ -161,6 +163,9 @@ export default class Player {
     move(x, y, delta, cameraYaw, dash = false) {
 
         if (!this.model) return;
+
+        // 攻撃・スキル中は移動アニメーションで上書きしない
+        if (this.isAttacking || this.isUsingSkill) return;
 
         const dir = new THREE.Vector2(x, -y);
 
@@ -243,11 +248,16 @@ export default class Player {
         }
 
         // 存在するアクション名から再生（無ければフォールバック）
-        if (this.actions && this.actions[animName]) {
-            this.animation.play(animName);
-        } else if (this.actions && this.actions["attack"]) {
-            // フォールバック
-            this.animation.play("attack");
+        const actionKey = (this.actions && this.actions[animName])
+            ? animName
+            : (this.actions && this.actions["attack"]) ? "attack" : null;
+
+        if (actionKey) {
+            // LoopOnce に設定して最後のフレームで止める
+            const action = this.actions[actionKey];
+            action.setLoop(THREE.LoopOnce);
+            action.clampWhenFinished = true;
+            this.animation.play(actionKey);
         } else {
             console.warn(`Attack animation not found for character: ${this.currentCharacter}`);
             this.isAttacking = false;
@@ -264,6 +274,11 @@ export default class Player {
 
         this.skillCooldown = this.skillCooldownMax;
 
+        if (this.actions && this.actions["skill"]) {
+            const action = this.actions["skill"];
+            action.setLoop(THREE.LoopOnce);
+            action.clampWhenFinished = true;
+        }
         this.animation.play("skill");
 
     } 
