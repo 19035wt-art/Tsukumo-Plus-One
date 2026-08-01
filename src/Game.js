@@ -82,6 +82,7 @@ export default class Game {
         this.ui.createHealthBar();
         this.ui.createAttackButton();
         this.ui.createSkillButton();
+        this.ui.createSkillCooldownGauge();
 this.ui.onAttack = () => {
     this.player.attack();
 };
@@ -179,6 +180,11 @@ this.ui.onSkill = () => {
         this.ui.updateHealthBar(
             this.player.currentHealth,
             this.player.maxHealth
+        );
+
+        this.ui.updateSkillCooldown(
+            this.player.skillCooldown,
+            this.player.skillCooldownMax
         );
 
         this.cameraController.update(

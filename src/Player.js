@@ -19,7 +19,7 @@ export default class Player {
         this.isUsingSkill = false;
 
         this.skillCooldown = 0;
-        this.skillCooldownMax = 5; // 5秒
+        this.skillCooldownMax = 0; // characterConfigsから動的に設定
         // キャラクター管理
         this.currentCharacter = "player";
         this.availableCharacters = ["player", "ShooterA"];
@@ -31,14 +31,16 @@ export default class Player {
             "player": {
                 height: 1.8,
                 scale: 1.0,
-                attackAnim: null,       // 攻撃モーションなし
-                skillAnim: null,        // スキルモーションなし
+                attackAnim: null,           // 攻撃モーションなし
+                skillAnim: null,            // スキルモーションなし
+                skillCooldownMax: 0,        // クールタイム(秒)
             },
             "ShooterA": {
                 height: 1.8,
                 scale: 1.0,
                 attackAnim: "Punch_Cross",
-                skillAnim: "OverThrow",
+                skillAnim: "OverhandThrow",
+                skillCooldownMax: 5,
             }
         };
 
@@ -273,7 +275,10 @@ export default class Player {
 
         this.isUsingSkill = true;
 
-        this.skillCooldown = this.skillCooldownMax;
+        // configからクールタイムを取得してセット
+        const cooldownMax = this.characterConfigs[this.currentCharacter]?.skillCooldownMax ?? 5;
+        this.skillCooldownMax = cooldownMax;
+        this.skillCooldown = cooldownMax;
 
         // configからスキルアニメーション名を取得
         const skillAnim = this.characterConfigs[this.currentCharacter]?.skillAnim;
