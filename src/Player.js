@@ -102,6 +102,25 @@ export default class Player {
 
                 this.animation.play("Idle_Loop");
 
+                this.mixer.addEventListener("finished", (e) => {
+                    let clipName = null;
+                    try {
+                        if (e.action && typeof e.action.getClip === 'function') {
+                            clipName = e.action.getClip().name;
+                        } else if (e.action && e.action._clip && e.action._clip.name) {
+                            clipName = e.action._clip.name;
+                        }
+                    } catch (err) { /* ignore */ }
+
+                    const attackNames = ["attack", "Puch_Cross"];
+                    if (clipName && attackNames.includes(clipName)) {
+                        this.isAttacking = false;
+                    }
+                    if (clipName === "skill") {
+                        this.isUsingSkill = false;
+                    }
+                });
+
                 resolve();
 
             });
@@ -131,32 +150,6 @@ export default class Player {
 
         }
 
-        // アニメーション完了イベントのハンドリングを汎用化
-        this.mixer.addEventListener("finished", (e) => {
-            // e.action からクリップ名を取り出す（互換性のため複数プロパティを試す）
-            let clipName = null;
-            try {
-                if (e.action && typeof e.action.getClip === 'function') {
-                    clipName = e.action.getClip().name;
-                } else if (e.action && e.action._clip && e.action._clip.name) {
-                    clipName = e.action._clip.name;
-                }
-            } catch (err) {
-                // ignore
-            }
-
-            // 攻撃用のアニメーション名を列挙（キャラによって名前が違うためここで扱う）
-            const attackNames = ["attack", "Puch_Cross"];
-
-            if (clipName && attackNames.includes(clipName)) {
-                this.isAttacking = false;
-            }
-
-            if (clipName === "skill") {
-                this.isUsingSkill = false;
-            }
-
-        });
         if (this.isAttacking || this.isUsingSkill) {
 
             return;
@@ -246,7 +239,7 @@ export default class Player {
         // キャラクターごとの攻撃アニメーション名を決定
         let animName = "attack";
         if (this.currentCharacter && (this.currentCharacter === "ShooterA" || this.currentCharacter.toLowerCase() === "shootera")) {
-            animName = "Puch_Cross"; // ShooterA の攻撃モーション名
+            animName = "Punch_Cross"; // ShooterA の攻撃モーション名
         }
 
         // 存在するアクション名から再生（無ければフォールバック）
