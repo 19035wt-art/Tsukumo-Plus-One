@@ -7,11 +7,15 @@ import Animation from "./Animation.js";
 // ─────────────────────────────────────────────────────────────────
 export const ENEMY_CONFIGS = {
     "enemy1": {
-        modelPath: "/models/enemy1.glb",
-        height: 1.8,
-        maxHealth: 100,
-        idleAnim: "Zombie_Idle_Loop",
-        hitAnim: "Hit_Chest",
+        modelPath:      "/models/enemy1.glb",
+        height:         1.8,
+        maxHealth:      100,
+        idleAnim:       "Zombie_Idle_Loop",
+        hitAnim:        "Hit_Chest",
+        walkAnim:       "Zombie_Walk",   // 存在しない場合は無視される
+        moveSpeed:      2.5,             // 追跡時の移動速度 (m/s)
+        detectionRange: 12,              // この距離以内でプレイヤーを検知
+        stopDistance:   1.5,             // プレイヤーとの最小距離（重ならない）
     },
     // "enemy2": {
     //     modelPath: "/models/enemy2.glb",
@@ -19,6 +23,10 @@ export const ENEMY_CONFIGS = {
     //     maxHealth: 200,
     //     idleAnim: "Idle",
     //     hitAnim: "HitReaction",
+    //     walkAnim: "Walk",
+    //     moveSpeed: 2.0,
+    //     detectionRange: 15,
+    //     stopDistance: 1.8,
     // },
 };
 
@@ -34,6 +42,7 @@ export class Enemy {
         this.actions = {};
         this.animation = null;
         this.isHit = false;
+        this.isChasing = false;
 
         this.maxHealth = 100;
         this.currentHealth = 100;
@@ -47,7 +56,7 @@ export class Enemy {
     }
 
     /**
-     * @param {string} type   - ENEMY_CONFIGS のキー ("enemy1" など)
+     * @param {string} type      - ENEMY_CONFIGS のキー ("enemy1" など)
      * @param {{ x?: number, y?: number, z?: number }} position - 出現座標
      */
     async load(type = "enemy1", position = { x: 5, y: 0, z: 0 }) {
@@ -62,6 +71,7 @@ export class Enemy {
         this.currentHealth = config.maxHealth;
         this.isAlive = true;
         this.isHit = false;
+        this.isChasing = false;
 
         const loader = new GLTFLoader();
         const gltf = await loader.loadAsync(config.modelPath);
@@ -109,7 +119,8 @@ export class Enemy {
             const cfg = ENEMY_CONFIGS[this.currentType];
             if (clipName && clipName === cfg?.hitAnim) {
                 this.isHit = false;
-                this.animation.play(cfg.idleAnim);
+                // 追跡中ならウォーク、そうでなければアイドル
+                this._playMoveOrIdle();
             }
         });
 
@@ -124,14 +135,35 @@ export class Enemy {
         this._redrawHealthBar();
 
         if (this.currentHealth <= 0) {
-            this.isAlive = false;
-            if (this._hbSprite) this._hbSprite.visible = false;
+            this._die();
             return;
         }
 
         // 被弾モーション（連打中は上書きしない）
         if (!this.isHit) {
             this._playHitAnim();
+        }
+    }
+
+    _die() {
+        this.isAlive = false;
+
+        // モデルをシーンから削除
+        if (this.model) {
+            this.scene.remove(this.model);
+            this.model = null;
+        }
+
+        // HP バーをシーンから削除
+        if (this._hbSprite) {
+            this.scene.remove(this._hbSprite);
+            this._hbSprite = null;
+        }
+
+        // テクスチャ解放
+        if (this._hbTexture) {
+            this._hbTexture.dispose();
+            this._hbTexture = null;
         }
     }
 
@@ -144,9 +176,57 @@ export class Enemy {
         const action = this.actions[hitAnim];
         action.setLoop(THREE.LoopOnce);
         action.clampWhenFinished = true;
-        // 同名アニメが current でも強制再生できるようリセット
         this.animation.current = null;
         this.animation.play(hitAnim);
+    }
+
+    _playMoveOrIdle() {
+        const cfg = ENEMY_CONFIGS[this.currentType];
+        if (!cfg) return;
+        if (this.isChasing && cfg.walkAnim && this.actions[cfg.walkAnim]) {
+            this.animation.play(cfg.walkAnim);
+        } else {
+            this.animation.play(cfg.idleAnim);
+        }
+    }
+
+    // ── AI 追跡 ────────────────────────────────────────────────
+    _updateAI(delta, playerPos) {
+        if (!this.isAlive || !this.model || this.isHit) return;
+
+        const cfg = ENEMY_CONFIGS[this.currentType];
+        const detectionRange = cfg?.detectionRange ?? 10;
+        const stopDistance   = cfg?.stopDistance   ?? 1.5;
+        const moveSpeed      = cfg?.moveSpeed      ?? 2;
+
+        const dx = playerPos.x - this.model.position.x;
+        const dz = playerPos.z - this.model.position.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+
+        const wasChasing = this.isChasing;
+
+        if (dist <= detectionRange) {
+            this.isChasing = true;
+
+            if (dist > stopDistance) {
+                // プレイヤーの方向へ移動
+                const step = Math.min(moveSpeed * delta, dist - stopDistance);
+                const nx = dx / dist;
+                const nz = dz / dist;
+                this.model.position.x += nx * step;
+                this.model.position.z += nz * step;
+
+                // プレイヤーの方向を向く
+                this.model.rotation.y = Math.atan2(nx, nz);
+            }
+        } else {
+            this.isChasing = false;
+        }
+
+        // 追跡状態が切り替わったときだけアニメを変更
+        if (this.isChasing !== wasChasing) {
+            this._playMoveOrIdle();
+        }
     }
 
     // ── HP バー（シーン直下で追従）────────────────────────────────
@@ -198,9 +278,14 @@ export class Enemy {
     }
 
     // ── 毎フレーム更新 ────────────────────────────────────────────
-    update(delta) {
+    /**
+     * @param {number} delta
+     * @param {THREE.Vector3|null} playerPos - プレイヤーの座標（null なら AI 無効）
+     */
+    update(delta, playerPos = null) {
         if (!this.model) return;
         if (this.mixer) this.mixer.update(delta);
+        if (playerPos) this._updateAI(delta, playerPos);
         this._syncHealthBarPosition();
     }
 }

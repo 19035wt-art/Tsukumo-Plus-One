@@ -202,8 +202,9 @@ this.ui.onSkill = () => {
         this.player.update(delta);
 
         // Enemy更新（複数体対応）
+        const playerPos = this.player.model?.position ?? null;
         if (this.enemies && this.enemies.length) {
-            this.enemies.forEach((e) => e.update(delta));
+            this.enemies.forEach((e) => e.update(delta, playerPos));
         }
 
         this.ui.updateHealthBar(
