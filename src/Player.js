@@ -241,6 +241,9 @@ export default class Player {
 
         if (!this.model) return;
 
+        // ロール中は入力でアニメーションを上書きしない
+        if (this.isRolling) return;
+
         // 攻撃・スキル中は移動アニメーションで上書きしない
         if (this.isAttacking || this.isUsingSkill) return;
 
