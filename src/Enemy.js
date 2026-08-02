@@ -2,8 +2,31 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import Animation from "./Animation.js";
 
+// ─────────────────────────────────────────────────────────────────
+// 敵種別設定（新しい敵を追加するときはここにエントリを足すだけ）
+// ─────────────────────────────────────────────────────────────────
+export const ENEMY_CONFIGS = {
+    "enemy1": {
+        modelPath: "/models/enemy1.glb",
+        height: 1.8,
+        maxHealth: 100,
+        idleAnim: "Zombie_Idle_Loop",
+        hitAnim: "Hit_Chest",
+    },
+    // "enemy2": {
+    //     modelPath: "/models/enemy2.glb",
+    //     height: 2.0,
+    //     maxHealth: 200,
+    //     idleAnim: "Idle",
+    //     hitAnim: "HitReaction",
+    // },
+};
+
 export class Enemy {
 
+    /**
+     * @param {THREE.Scene} scene
+     */
     constructor(scene) {
         this.scene = scene;
         this.model = null;
@@ -16,27 +39,19 @@ export class Enemy {
         this.currentHealth = 100;
         this.isAlive = true;
 
-        this.currentType = "enemy1";
-
-        // 敵種別ごとの設定
-        // 新しい敵を追加するときはここにエントリを追加するだけでOK
-        this.enemyConfigs = {
-            "enemy1": {
-                modelPath: "/models/enemy1.glb",
-                height: 1.8,
-                maxHealth: 100,
-                idleAnim: "Zombie_Idle_Loop",
-                hitAnim: "Hit_Chest",
-            },
-        };
+        this.currentType = null;
 
         this._hbSprite = null;
         this._hbTexture = null;
         this._hbCtx = null;
     }
 
-    async load(type = "enemy1") {
-        const config = this.enemyConfigs[type];
+    /**
+     * @param {string} type   - ENEMY_CONFIGS のキー ("enemy1" など)
+     * @param {{ x?: number, y?: number, z?: number }} position - 出現座標
+     */
+    async load(type = "enemy1", position = { x: 5, y: 0, z: 0 }) {
+        const config = ENEMY_CONFIGS[type];
         if (!config) {
             console.warn(`Enemy config not found for type: ${type}`);
             return;
@@ -65,7 +80,11 @@ export class Enemy {
             this.model.scale.setScalar(config.height / maxY);
         }
 
-        this.model.position.set(5, 0, 0);
+        this.model.position.set(
+            position.x ?? 5,
+            position.y ?? 0,
+            position.z ?? 0,
+        );
         this.model.rotation.y = Math.PI;
         this.scene.add(this.model);
 
@@ -87,7 +106,7 @@ export class Enemy {
                 clipName = e.action?.getClip?.()?.name ?? e.action?._clip?.name ?? null;
             } catch (_) { /* ignore */ }
 
-            const cfg = this.enemyConfigs[this.currentType];
+            const cfg = ENEMY_CONFIGS[this.currentType];
             if (clipName && clipName === cfg?.hitAnim) {
                 this.isHit = false;
                 this.animation.play(cfg.idleAnim);
@@ -117,7 +136,7 @@ export class Enemy {
     }
 
     _playHitAnim() {
-        const config = this.enemyConfigs[this.currentType];
+        const config = ENEMY_CONFIGS[this.currentType];
         const hitAnim = config?.hitAnim;
         if (!hitAnim || !this.actions?.[hitAnim]) return;
 
