@@ -20,6 +20,13 @@ export default class Player {
 
         this.skillCooldown = 0;
         this.skillCooldownMax = 0; // characterConfigsから動的に設定
+
+        // 回避（Roll）用
+        this.isRolling = false;
+        this.rollCooldown = 0;
+        this.rollCooldownMax = 0;
+        this._rollTimer = 0;
+
         // キャラクター管理
         this.currentCharacter = "player";
         this.availableCharacters = ["player", "ShooterA"];
@@ -36,11 +43,14 @@ export default class Player {
                 skillCooldownMax: 0,
                 attackPower: 0,
                 attackRange: 0,
-                attackAngle: 360,
+                attackAngle: 360, // 度数（360 = 全方向）
                 skillPower: 0,
                 skillRange: 0,
                 skillAngle: 360,
+                rollAnim: null, // 追加
                 rollCooldownMax: 0,
+                rollSpeed: 0,
+                rollDuration: 0,
             },
             "ShooterA": {
                 height: 1.8,
@@ -50,11 +60,15 @@ export default class Player {
                 skillCooldownMax: 5,
                 attackPower: 20,
                 attackRange: 2.5,
-                attackAngle: 80,
+                attackAngle: 80,   // 正面±40°の扇形
                 skillPower: 50,
                 skillRange: 5.0,
-                skillAngle: 120,
-                rollCooldownMax: 3, // 回避クールタイム（秒）
+                skillAngle: 120,   // 正面±60°の扇形（スキルは広め）
+                // 回避設定（例）
+                rollAnim: "Roll",
+                rollCooldownMax: 3, // 秒
+                rollSpeed: 8, // ロール時の速度（m/s 相当）
+                rollDuration: 0.4, // ロール継続時間（秒）
             }
         };
 
@@ -145,6 +159,8 @@ export default class Player {
                         .map(c => c.attackAnim).filter(Boolean);
                     const allSkillAnims = Object.values(this.characterConfigs)
                         .map(c => c.skillAnim).filter(Boolean);
+                    const allRollAnims = Object.values(this.characterConfigs)
+                        .map(c => c.rollAnim).filter(Boolean);
 
                     if (clipName && allAttackAnims.includes(clipName)) {
                         this.isAttacking = false;
@@ -152,6 +168,11 @@ export default class Player {
                     }
                     if (clipName && allSkillAnims.includes(clipName)) {
                         this.isUsingSkill = false;
+                        this.animation.play("Idle_Loop");
+                    }
+                    if (clipName && allRollAnims.includes(clipName)) {
+                        this.isRolling = false;
+                        this._rollTimer = 0;
                         this.animation.play("Idle_Loop");
                     }
                 });
@@ -175,20 +196,43 @@ export default class Player {
 
     update(delta) {
         if (this.mixer) {
-
             this.mixer.update(delta);
-
         }
+
+        // クールタイム減算（skill と roll）
         if (this.skillCooldown > 0) {
-
             this.skillCooldown -= delta;
+            if (this.skillCooldown < 0) this.skillCooldown = 0;
+        }
+        if (this.rollCooldown > 0) {
+            this.rollCooldown -= delta;
+            if (this.rollCooldown < 0) this.rollCooldown = 0;
+        }
 
+        // ロール中の移動処理（短時間のインパルス）
+        if (this.isRolling && this._rollTimer > 0 && this.model) {
+            const cfg = this.characterConfigs[this.currentCharacter] || {};
+            const rollSpeed = cfg.rollSpeed ?? 8;
+            // 前方ベクトル
+            const forward = new THREE.Vector3(
+                Math.sin(this.rotation),
+                0,
+                Math.cos(this.rotation)
+            );
+            // 単純に位置を進める（衝突などは考慮していません）
+            this.model.position.addScaledVector(forward, rollSpeed * delta);
+            this._rollTimer -= delta;
+            if (this._rollTimer <= 0) {
+                this.isRolling = false;
+                this._rollTimer = 0;
+                // アニメーションは mixer.finished イベントでも解除される
+            }
+            // ロール中は入力による別アニメーション上書きしない
+            return;
         }
 
         if (this.isAttacking || this.isUsingSkill) {
-
             return;
-
         }
 
     }
@@ -326,7 +370,33 @@ export default class Player {
             this.isUsingSkill = false;
         }
 
-    } 
+    }
+    // 追加：回避（Roll）
+    roll() {
+        if (this.isAttacking || this.isUsingSkill || this.isRolling) return;
+        if (this.rollCooldown > 0) return;
+
+        const config = this.characterConfigs[this.currentCharacter] || {};
+        const cooldownMax = config?.rollCooldownMax ?? 3;
+        this.rollCooldownMax = cooldownMax;
+        this.rollCooldown = cooldownMax;
+
+        this.isRolling = true;
+        this._rollTimer = config?.rollDuration ?? 0.4;
+
+        const rollAnim = config?.rollAnim;
+        if (rollAnim && this.actions?.[rollAnim]) {
+            const action = this.actions[rollAnim];
+            action.setLoop(THREE.LoopOnce);
+            action.clampWhenFinished = true;
+            this.animation.play(rollAnim);
+        } else {
+            // アニメーションが無ければ即座にロール移動のみ行い、タイマーで解除
+            // (既に isRolling と _rollTimer を設定済み)
+            console.warn(`Roll animation not found for character: ${this.currentCharacter}`);
+        }
+    }
+
     heal(amount) {
         this.currentHealth = Math.min(this.maxHealth, this.currentHealth + amount);
     }
