@@ -81,6 +81,15 @@ export default class Game {
         this.enemies = positions.map(() => new Enemy(this.scene));
         await Promise.all(this.enemies.map((e, i) => e.load("enemy1", positions[i])));
 
+        // 各敵の攻撃ヒット時にプレイヤーへダメージを与えるコールバックを登録
+        this.enemies.forEach((enemy) => {
+            enemy.onAttackHit = (power) => {
+                if (this.player.isAlive) {
+                    this.player.takeDamage(power);
+                }
+            };
+        });
+
         this.cameraController =
             new GameCamera(
                 this.camera,

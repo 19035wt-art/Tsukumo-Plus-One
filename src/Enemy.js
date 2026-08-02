@@ -10,39 +10,47 @@ export const ENEMY_CONFIGS = {
         modelPath:      "/models/enemy1.glb",
         height:         1.8,
         maxHealth:      100,
+
+        // アニメーション
         idleAnim:       "Zombie_Idle_Loop",
         hitAnim:        "Hit_Chest",
-        walkAnim:       "Zombie_Walk_Fwd_Loop",   // 存在しない場合は無視される
-        moveSpeed:      2.5,             // 追跡時の移動速度 (m/s)
-        detectionRange: 12,              // この距離以内でプレイヤーを検知
-        stopDistance:   1.5,             // プレイヤーとの最小距離（重ならない）
+        walkAnim:       "Zombie_Walk_Fwd_Loop", // 存在しない場合は無視
+        attackAnim:     "Zombie_Attack",        // 存在しない場合は無視
+
+        // 移動 AI
+        moveSpeed:      2.5,    // 追跡速度 (m/s)
+        detectionRange: 12,     // 検知距離 (m)
+        stopDistance:   1.6,    // プレイヤーとの最小距離 (m)
+
+        // 攻撃
+        attackPower:    15,     // ダメージ量
+        attackRange:    2.0,    // 攻撃が届く距離 (m) — stopDistance 以上推奨
+        attackAngle:    90,     // 攻撃の扇形の全角度（度）。360 = 全方向
+        attackCooldown: 2.0,    // 攻撃間隔 (秒)
     },
     // "enemy2": {
-    //     modelPath: "/models/enemy2.glb",
-    //     height: 2.0,
-    //     maxHealth: 200,
-    //     idleAnim: "Idle",
-    //     hitAnim: "HitReaction",
-    //     walkAnim: "Walk",
-    //     moveSpeed: 2.0,
-    //     detectionRange: 15,
-    //     stopDistance: 1.8,
+    //     ...
+    //     attackPower:    30,
+    //     attackRange:    2.5,
+    //     attackAngle:    60,
+    //     attackCooldown: 3.0,
     // },
 };
 
 export class Enemy {
 
-    /**
-     * @param {THREE.Scene} scene
-     */
+    /** @param {THREE.Scene} scene */
     constructor(scene) {
         this.scene = scene;
         this.model = null;
         this.mixer = null;
         this.actions = {};
         this.animation = null;
+
         this.isHit = false;
         this.isChasing = false;
+        this.isAttacking = false;
+        this.attackCooldownTimer = 0;
 
         this.maxHealth = 100;
         this.currentHealth = 100;
@@ -50,14 +58,17 @@ export class Enemy {
 
         this.currentType = null;
 
+        // Game.js から登録: (power) => void
+        this.onAttackHit = null;
+
         this._hbSprite = null;
         this._hbTexture = null;
         this._hbCtx = null;
     }
 
     /**
-     * @param {string} type      - ENEMY_CONFIGS のキー ("enemy1" など)
-     * @param {{ x?: number, y?: number, z?: number }} position - 出現座標
+     * @param {string} type
+     * @param {{ x?: number, y?: number, z?: number }} position
      */
     async load(type = "enemy1", position = { x: 5, y: 0, z: 0 }) {
         const config = ENEMY_CONFIGS[type];
@@ -72,6 +83,8 @@ export class Enemy {
         this.isAlive = true;
         this.isHit = false;
         this.isChasing = false;
+        this.isAttacking = false;
+        this.attackCooldownTimer = 0;
 
         const loader = new GLTFLoader();
         const gltf = await loader.loadAsync(config.modelPath);
@@ -109,7 +122,7 @@ export class Enemy {
         // 待機モーション再生
         this.animation.play(config.idleAnim);
 
-        // アニメーション終了イベント（被弾後にアイドルへ戻る）
+        // アニメーション終了イベント
         this.mixer.addEventListener("finished", (e) => {
             let clipName = null;
             try {
@@ -117,9 +130,14 @@ export class Enemy {
             } catch (_) { /* ignore */ }
 
             const cfg = ENEMY_CONFIGS[this.currentType];
-            if (clipName && clipName === cfg?.hitAnim) {
+            if (!cfg || !clipName) return;
+
+            if (clipName === cfg.hitAnim) {
                 this.isHit = false;
-                // 追跡中ならウォーク、そうでなければアイドル
+                this._playMoveOrIdle();
+            }
+            if (clipName === cfg.attackAnim) {
+                this.isAttacking = false;
                 this._playMoveOrIdle();
             }
         });
@@ -139,7 +157,6 @@ export class Enemy {
             return;
         }
 
-        // 被弾モーション（連打中は上書きしない）
         if (!this.isHit) {
             this._playHitAnim();
         }
@@ -147,20 +164,14 @@ export class Enemy {
 
     _die() {
         this.isAlive = false;
-
-        // モデルをシーンから削除
         if (this.model) {
             this.scene.remove(this.model);
             this.model = null;
         }
-
-        // HP バーをシーンから削除
         if (this._hbSprite) {
             this.scene.remove(this._hbSprite);
             this._hbSprite = null;
         }
-
-        // テクスチャ解放
         if (this._hbTexture) {
             this._hbTexture.dispose();
             this._hbTexture = null;
@@ -190,14 +201,19 @@ export class Enemy {
         }
     }
 
-    // ── AI 追跡 ────────────────────────────────────────────────
+    // ── AI 追跡 + 攻撃 ───────────────────────────────────────────
     _updateAI(delta, playerPos) {
-        if (!this.isAlive || !this.model || this.isHit) return;
+        if (!this.isAlive || !this.model) return;
 
         const cfg = ENEMY_CONFIGS[this.currentType];
         const detectionRange = cfg?.detectionRange ?? 10;
         const stopDistance   = cfg?.stopDistance   ?? 1.5;
         const moveSpeed      = cfg?.moveSpeed      ?? 2;
+
+        // 攻撃クールダウンをカウントダウン（毎フレーム）
+        if (this.attackCooldownTimer > 0) {
+            this.attackCooldownTimer -= delta;
+        }
 
         const dx = playerPos.x - this.model.position.x;
         const dz = playerPos.z - this.model.position.z;
@@ -208,37 +224,82 @@ export class Enemy {
         if (dist <= detectionRange) {
             this.isChasing = true;
 
-            if (dist > stopDistance) {
-                // プレイヤーの方向へ移動
-                const step = Math.min(moveSpeed * delta, dist - stopDistance);
-                const nx = dx / dist;
-                const nz = dz / dist;
-                this.model.position.x += nx * step;
-                this.model.position.z += nz * step;
-
-                // プレイヤーの方向を向く
-                this.model.rotation.y = Math.atan2(nx, nz);
+            // 被弾中・攻撃中は移動しない
+            if (!this.isHit && !this.isAttacking) {
+                if (dist > stopDistance) {
+                    const step = Math.min(moveSpeed * delta, dist - stopDistance);
+                    const nx = dx / dist;
+                    const nz = dz / dist;
+                    this.model.position.x += nx * step;
+                    this.model.position.z += nz * step;
+                    this.model.rotation.y = Math.atan2(nx, nz);
+                } else {
+                    // 攻撃射程内なら攻撃を試みる
+                    this._tryAttack(playerPos, dist);
+                }
             }
         } else {
             this.isChasing = false;
         }
 
-        // 追跡状態が切り替わったときだけアニメを変更
         if (this.isChasing !== wasChasing) {
             this._playMoveOrIdle();
         }
     }
 
+    // ── 攻撃 ──────────────────────────────────────────────────────
+    _tryAttack(playerPos, dist) {
+        const cfg = ENEMY_CONFIGS[this.currentType];
+        if (!cfg?.attackPower) return;            // 攻撃設定なし
+        if (this.isHit || this.isAttacking) return;
+        if (this.attackCooldownTimer > 0) return; // クールダウン中
+
+        const attackRange = cfg.attackRange ?? cfg.stopDistance ?? 1.8;
+        if (dist > attackRange) return;           // 射程外
+
+        // 角度チェック
+        const attackAngle = cfg.attackAngle ?? 360;
+        if (attackAngle < 360 && dist > 0.001) {
+            const halfRad = (attackAngle / 2) * (Math.PI / 180);
+            const dx = playerPos.x - this.model.position.x;
+            const dz = playerPos.z - this.model.position.z;
+            const nx = dx / dist;
+            const nz = dz / dist;
+            // 敵の正面ベクトル
+            const fx = Math.sin(this.model.rotation.y);
+            const fz = Math.cos(this.model.rotation.y);
+            const dot = fx * nx + fz * nz;
+            const angle = Math.acos(Math.max(-1, Math.min(1, dot)));
+            if (angle > halfRad) return;
+        }
+
+        // 攻撃発動
+        this.isAttacking = true;
+        this.attackCooldownTimer = cfg.attackCooldown ?? 2.0;
+
+        if (this.onAttackHit) {
+            this.onAttackHit(cfg.attackPower);
+        }
+
+        // 攻撃アニメーション再生（存在する場合のみ）
+        const attackAnim = cfg.attackAnim;
+        if (attackAnim && this.actions?.[attackAnim]) {
+            const action = this.actions[attackAnim];
+            action.setLoop(THREE.LoopOnce);
+            action.clampWhenFinished = true;
+            this.animation.current = null;
+            this.animation.play(attackAnim);
+        } else {
+            // アニメなし → 即フラグ解除
+            this.isAttacking = false;
+        }
+    }
+
     // ── 敵同士の分離 ──────────────────────────────────────────────
-    /**
-     * 他の敵と重ならないよう押し合う
-     * @param {Enemy[]} others - 自分以外の敵リスト
-     */
     _applySeparation(others) {
         if (!this.isAlive || !this.model) return;
 
         const cfg = ENEMY_CONFIGS[this.currentType];
-        // 敵同士の最小距離（stopDistance と同程度か少し広め）
         const separationRadius = (cfg?.stopDistance ?? 1.5) * 1.4;
 
         for (const other of others) {
@@ -249,11 +310,9 @@ export class Enemy {
             const dist = Math.sqrt(dx * dx + dz * dz);
 
             if (dist < separationRadius && dist > 0.001) {
-                // 重なり量に比例した強さで押し出す
                 const overlap = separationRadius - dist;
                 const nx = dx / dist;
                 const nz = dz / dist;
-                // 双方向で0.5ずつ負担（対称）
                 this.model.position.x  += nx * overlap * 0.5;
                 this.model.position.z  += nz * overlap * 0.5;
                 other.model.position.x -= nx * overlap * 0.5;
@@ -312,9 +371,9 @@ export class Enemy {
 
     // ── 毎フレーム更新 ────────────────────────────────────────────
     /**
-     * @param {number} delta
-     * @param {THREE.Vector3|null} playerPos  - プレイヤーの座標（null なら AI 無効）
-     * @param {Enemy[]}            allEnemies - 全敵リスト（分離処理用）
+     * @param {number}           delta
+     * @param {THREE.Vector3|null} playerPos  - プレイヤー座標（null なら AI 無効）
+     * @param {Enemy[]}          allEnemies  - 全敵リスト（分離処理用）
      */
     update(delta, playerPos = null, allEnemies = []) {
         if (!this.model) return;
