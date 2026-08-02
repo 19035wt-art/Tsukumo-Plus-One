@@ -101,13 +101,21 @@ export default class Game {
         this.ui.createAttackButton();
         this.ui.createSkillButton();
         this.ui.createSkillCooldownGauge();
-this.ui.onAttack = () => {
-    this.player.attack();
-};
+        this.ui.createRollButton(); // 追加
+        // (roll 用のクールダウン表示は UI 側で生成済み)
 
-this.ui.onSkill = () => {
-    this.player.useSkill();
-};
+        this.ui.onAttack = () => {
+            this.player.attack();
+        };
+
+        this.ui.onSkill = () => {
+            this.player.useSkill();
+        };
+
+        // 回避ボタンの接続
+        this.ui.onRoll = () => {
+            this.player.roll();
+        };
 
         // 範囲＋角度内の生存敵にダメージを与える共通ヘルパー
         // angle: 扇形の全角度（度数）。360 なら全方向。
@@ -245,9 +253,14 @@ this.ui.onSkill = () => {
             this.player.maxHealth
         );
 
+        // スキルとロールのクールタイム表示を更新
         this.ui.updateSkillCooldown(
             this.player.skillCooldown,
             this.player.skillCooldownMax
+        );
+        this.ui.updateRollCooldown(
+            this.player.rollCooldown,
+            this.player.rollCooldownMax
         );
 
         this.cameraController.update(
