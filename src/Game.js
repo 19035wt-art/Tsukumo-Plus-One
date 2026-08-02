@@ -85,7 +85,14 @@ export default class Game {
         this.enemies.forEach((enemy) => {
             enemy.onAttackHit = (power) => {
                 if (this.player.isAlive) {
-                    this.player.takeDamage(power);
+                    // 変更: ロール中はダメージを無効化（回避成功）
+                    if (!this.player.isRolling) {
+                        this.player.takeDamage(power);
+                    } else {
+                        // 回避成功時の処理を入れたい場合はここに追加
+                        // 例: エフェクト再生、サウンド再生、無敵フラグ処理など
+                        // console.log("回避成功");
+                    }
                 }
             };
         });
