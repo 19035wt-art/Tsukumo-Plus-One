@@ -36,10 +36,11 @@ export default class Player {
                 skillCooldownMax: 0,
                 attackPower: 0,
                 attackRange: 0,
-                attackAngle: 360, // 度数（360 = 全方向）
+                attackAngle: 360,
                 skillPower: 0,
                 skillRange: 0,
                 skillAngle: 360,
+                rollCooldownMax: 0,
             },
             "ShooterA": {
                 height: 1.8,
@@ -49,10 +50,11 @@ export default class Player {
                 skillCooldownMax: 5,
                 attackPower: 20,
                 attackRange: 2.5,
-                attackAngle: 80,   // 正面±40°の扇形
+                attackAngle: 80,
                 skillPower: 50,
                 skillRange: 5.0,
-                skillAngle: 120,   // 正面±60°の扇形（スキルは広め）
+                skillAngle: 120,
+                rollCooldownMax: 3, // 回避クールタイム（秒）
             }
         };
 

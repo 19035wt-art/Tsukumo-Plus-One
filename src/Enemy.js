@@ -15,11 +15,11 @@ export const ENEMY_CONFIGS = {
         idleAnim:       "Zombie_Idle_Loop",
         hitAnim:        "Hit_Chest",
         walkAnim:       "Zombie_Walk_Fwd_Loop", // 存在しない場合は無視
-        attackAnim:     "Zombie_Attack",        // 存在しない場合は無視
+        attackAnim:     "Zombie_Scratch",        // 存在しない場合は無視
 
         // 移動 AI
-        moveSpeed:      2.5,    // 追跡速度 (m/s)
-        detectionRange: 12,     // 検知距離 (m)
+        moveSpeed:      1.5,    // 追跡速度 (m/s)
+        detectionRange: 8,     // 検知距離 (m)
         stopDistance:   1.6,    // プレイヤーとの最小距離 (m)
 
         // 攻撃
