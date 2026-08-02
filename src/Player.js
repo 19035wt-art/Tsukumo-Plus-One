@@ -36,6 +36,8 @@ export default class Player {
                 skillCooldownMax: 0,
                 attackPower: 0,
                 attackRange: 0,
+                skillPower: 0,
+                skillRange: 0,
             },
             "ShooterA": {
                 height: 1.8,
@@ -45,12 +47,17 @@ export default class Player {
                 skillCooldownMax: 5,
                 attackPower: 20,
                 attackRange: 2.5,
+                skillPower: 50,   // スキルダメージ（攻撃より強い）
+                skillRange: 5.0,  // スキル射程（攻撃より広い）
             }
         };
 
         // 攻撃ヒット時のコールバック (power, range) => void
         // Game.js から登録して距離チェック・ダメージ適用を行う
         this.onAttackHit = null;
+
+        // スキルヒット時のコールバック (power, range) => void
+        this.onSkillHit = null;
 
         // ステータス管理
         this.maxHealth = 100;
@@ -290,12 +297,18 @@ export default class Player {
         this.isUsingSkill = true;
 
         // configからクールタイムを取得してセット
-        const cooldownMax = this.characterConfigs[this.currentCharacter]?.skillCooldownMax ?? 5;
+        const config = this.characterConfigs[this.currentCharacter];
+        const cooldownMax = config?.skillCooldownMax ?? 5;
         this.skillCooldownMax = cooldownMax;
         this.skillCooldown = cooldownMax;
 
+        // スキルヒット判定コールバックを呼ぶ
+        if (this.onSkillHit && config?.skillPower > 0) {
+            this.onSkillHit(config.skillPower, config.skillRange);
+        }
+
         // configからスキルアニメーション名を取得
-        const skillAnim = this.characterConfigs[this.currentCharacter]?.skillAnim;
+        const skillAnim = config?.skillAnim;
 
         if (skillAnim && this.actions?.[skillAnim]) {
             const action = this.actions[skillAnim];

@@ -229,6 +229,39 @@ export class Enemy {
         }
     }
 
+    // ── 敵同士の分離 ──────────────────────────────────────────────
+    /**
+     * 他の敵と重ならないよう押し合う
+     * @param {Enemy[]} others - 自分以外の敵リスト
+     */
+    _applySeparation(others) {
+        if (!this.isAlive || !this.model) return;
+
+        const cfg = ENEMY_CONFIGS[this.currentType];
+        // 敵同士の最小距離（stopDistance と同程度か少し広め）
+        const separationRadius = (cfg?.stopDistance ?? 1.5) * 1.4;
+
+        for (const other of others) {
+            if (other === this || !other.isAlive || !other.model) continue;
+
+            const dx = this.model.position.x - other.model.position.x;
+            const dz = this.model.position.z - other.model.position.z;
+            const dist = Math.sqrt(dx * dx + dz * dz);
+
+            if (dist < separationRadius && dist > 0.001) {
+                // 重なり量に比例した強さで押し出す
+                const overlap = separationRadius - dist;
+                const nx = dx / dist;
+                const nz = dz / dist;
+                // 双方向で0.5ずつ負担（対称）
+                this.model.position.x  += nx * overlap * 0.5;
+                this.model.position.z  += nz * overlap * 0.5;
+                other.model.position.x -= nx * overlap * 0.5;
+                other.model.position.z -= nz * overlap * 0.5;
+            }
+        }
+    }
+
     // ── HP バー（シーン直下で追従）────────────────────────────────
     _createHealthBar() {
         const canvas = document.createElement("canvas");
@@ -280,12 +313,14 @@ export class Enemy {
     // ── 毎フレーム更新 ────────────────────────────────────────────
     /**
      * @param {number} delta
-     * @param {THREE.Vector3|null} playerPos - プレイヤーの座標（null なら AI 無効）
+     * @param {THREE.Vector3|null} playerPos  - プレイヤーの座標（null なら AI 無効）
+     * @param {Enemy[]}            allEnemies - 全敵リスト（分離処理用）
      */
-    update(delta, playerPos = null) {
+    update(delta, playerPos = null, allEnemies = []) {
         if (!this.model) return;
         if (this.mixer) this.mixer.update(delta);
         if (playerPos) this._updateAI(delta, playerPos);
+        this._applySeparation(allEnemies);
         this._syncHealthBarPosition();
     }
 }

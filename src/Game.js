@@ -100,23 +100,24 @@ this.ui.onSkill = () => {
     this.player.useSkill();
 };
 
-        // 攻撃ヒット判定：プレイヤーと敵の距離をチェックしてダメージを適用
-        this.player.onAttackHit = (power, range) => {
+        // 範囲内の生存敵にダメージを与える共通ヘルパー
+        const _hitEnemiesInRange = (power, range) => {
             if (!this.enemies || this.enemies.length === 0) return;
             if (!this.player.model) return;
-
-            // プレイヤーの攻撃範囲内にいるすべての敵にダメージを適用する
             this.enemies.forEach((enemy) => {
-                if (!enemy.isAlive) return;
-                if (!enemy.model) return;
-                const dist = this.player.model.position.distanceTo(
-                    enemy.model.position
-                );
+                if (!enemy.isAlive || !enemy.model) return;
+                const dist = this.player.model.position.distanceTo(enemy.model.position);
                 if (dist <= range) {
                     enemy.takeDamage(power);
                 }
             });
         };
+
+        // 通常攻撃ヒット判定
+        this.player.onAttackHit = (power, range) => _hitEnemiesInRange(power, range);
+
+        // スキルヒット判定（射程・威力はcharacterConfigsのskillPower/skillRangeを使用）
+        this.player.onSkillHit  = (power, range) => _hitEnemiesInRange(power, range);
 
         this.updateUI();
 
@@ -204,7 +205,7 @@ this.ui.onSkill = () => {
         // Enemy更新（複数体対応）
         const playerPos = this.player.model?.position ?? null;
         if (this.enemies && this.enemies.length) {
-            this.enemies.forEach((e) => e.update(delta, playerPos));
+            this.enemies.forEach((e) => e.update(delta, playerPos, this.enemies));
         }
 
         this.ui.updateHealthBar(
