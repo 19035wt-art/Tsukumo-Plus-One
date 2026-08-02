@@ -12,7 +12,7 @@ export const ENEMY_CONFIGS = {
         maxHealth:      100,
         idleAnim:       "Zombie_Idle_Loop",
         hitAnim:        "Hit_Chest",
-        walkAnim:       "Zombie_Walk",   // 存在しない場合は無視される
+        walkAnim:       "Zombie_Walk_Fwd_Loop",   // 存在しない場合は無視される
         moveSpeed:      2.5,             // 追跡時の移動速度 (m/s)
         detectionRange: 12,              // この距離以内でプレイヤーを検知
         stopDistance:   1.5,             // プレイヤーとの最小距離（重ならない）

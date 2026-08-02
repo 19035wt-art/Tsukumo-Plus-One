@@ -36,8 +36,10 @@ export default class Player {
                 skillCooldownMax: 0,
                 attackPower: 0,
                 attackRange: 0,
+                attackAngle: 360, // 度数（360 = 全方向）
                 skillPower: 0,
                 skillRange: 0,
+                skillAngle: 360,
             },
             "ShooterA": {
                 height: 1.8,
@@ -47,8 +49,10 @@ export default class Player {
                 skillCooldownMax: 5,
                 attackPower: 20,
                 attackRange: 2.5,
-                skillPower: 50,   // スキルダメージ（攻撃より強い）
-                skillRange: 5.0,  // スキル射程（攻撃より広い）
+                attackAngle: 80,   // 正面±40°の扇形
+                skillPower: 50,
+                skillRange: 5.0,
+                skillAngle: 120,   // 正面±60°の扇形（スキルは広め）
             }
         };
 
@@ -271,7 +275,7 @@ export default class Player {
         // configから攻撃パラメータを取得してヒット判定コールバックを呼ぶ
         const config = this.characterConfigs[this.currentCharacter];
         if (this.onAttackHit && config?.attackPower > 0) {
-            this.onAttackHit(config.attackPower, config.attackRange);
+            this.onAttackHit(config.attackPower, config.attackRange, config.attackAngle ?? 360);
         }
 
         // configから攻撃アニメーション名を取得
@@ -304,7 +308,7 @@ export default class Player {
 
         // スキルヒット判定コールバックを呼ぶ
         if (this.onSkillHit && config?.skillPower > 0) {
-            this.onSkillHit(config.skillPower, config.skillRange);
+            this.onSkillHit(config.skillPower, config.skillRange, config.skillAngle ?? 360);
         }
 
         // configからスキルアニメーション名を取得

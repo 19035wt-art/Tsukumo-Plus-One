@@ -100,24 +100,47 @@ this.ui.onSkill = () => {
     this.player.useSkill();
 };
 
-        // 範囲内の生存敵にダメージを与える共通ヘルパー
-        const _hitEnemiesInRange = (power, range) => {
+        // 範囲＋角度内の生存敵にダメージを与える共通ヘルパー
+        // angle: 扇形の全角度（度数）。360 なら全方向。
+        const _hitEnemiesInRange = (power, range, angleDeg) => {
             if (!this.enemies || this.enemies.length === 0) return;
             if (!this.player.model) return;
+
+            const halfRad = (angleDeg / 2) * (Math.PI / 180);
+            const facingY = this.player.model.rotation.y; // プレイヤーの向き（ラジアン）
+
             this.enemies.forEach((enemy) => {
                 if (!enemy.isAlive || !enemy.model) return;
-                const dist = this.player.model.position.distanceTo(enemy.model.position);
-                if (dist <= range) {
-                    enemy.takeDamage(power);
+
+                const dx = enemy.model.position.x - this.player.model.position.x;
+                const dz = enemy.model.position.z - this.player.model.position.z;
+                const dist = Math.sqrt(dx * dx + dz * dz);
+
+                if (dist > range) return;
+
+                // 全方向指定なら角度チェックをスキップ
+                if (angleDeg < 360) {
+                    // プレイヤー正面ベクトル（rotation.y 基準）
+                    const fx = Math.sin(facingY);
+                    const fz = Math.cos(facingY);
+                    // 敵への方向ベクトル（正規化）
+                    const ex = dx / dist;
+                    const ez = dz / dist;
+                    // 内積 → なす角
+                    const dot = fx * ex + fz * ez;
+                    const angle = Math.acos(Math.max(-1, Math.min(1, dot)));
+                    if (angle > halfRad) return;
                 }
+
+                enemy.takeDamage(power);
             });
         };
 
         // 通常攻撃ヒット判定
-        this.player.onAttackHit = (power, range) => _hitEnemiesInRange(power, range);
+        this.player.onAttackHit = (power, range, angle) => _hitEnemiesInRange(power, range, angle);
 
-        // スキルヒット判定（射程・威力はcharacterConfigsのskillPower/skillRangeを使用）
-        this.player.onSkillHit  = (power, range) => _hitEnemiesInRange(power, range);
+        // スキルヒット判定
+        this.player.onSkillHit  = (power, range, angle) => _hitEnemiesInRange(power, range, angle);
 
         this.updateUI();
 
