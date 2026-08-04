@@ -87,7 +87,8 @@ export default class Game {
                 if (this.player.isAlive) {
                     // 変更: ロール中はダメージを無効化（回避成功）
                     if (!this.player.isRolling) {
-                        this.player.takeDamage(power);
+                        // ノックバック付きでダメージ与える（敵の位置を渡す）
+                        this.player.takeDamage(power, enemy.model.position);
                     } else {
                         // 回避成功時の処理を入れたい場合はここに追加
                         // 例: エフェクト再生、サウンド再生、無敵フラグ処理など
@@ -156,7 +157,8 @@ export default class Game {
                     if (angle > halfRad) return;
                 }
 
-                enemy.takeDamage(power);
+                // ノックバック付きでダメージ与える（プレイヤーの位置を渡す）
+                enemy.takeDamage(power, this.player.model.position);
             });
         };
 
