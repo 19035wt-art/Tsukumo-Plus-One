@@ -92,6 +92,8 @@ export default class Player {
         // pending for deferred hit application
         this._pendingAttack = null; // { power, range, angle }
         this._pendingSkill = null;  // { power, range, angle }
+        this._pendingAttackTimer = 0; // seconds until hit application
+        this._pendingSkillTimer = 0;  // seconds until hit application
 
     }
 
@@ -178,27 +180,11 @@ export default class Player {
 
                     if (clipName && allAttackAnims.includes(clipName)) {
                         this.isAttacking = false;
-                        // apply pending attack hit now (damage when animation finishes)
-                        if (this._pendingAttack) {
-                            const { power, range, angle } = this._pendingAttack;
-                            if (this.onAttackHit && power > 0) {
-                                this.onAttackHit(power, range, angle ?? 360);
-                            }
-                            this._pendingAttack = null;
-                        }
-
+                        // previously applied pending on finish; now hits occur mid-animation via timers
                         this.animation.play("Idle_Loop");
                     }
                     if (clipName && allSkillAnims.includes(clipName)) {
                         this.isUsingSkill = false;
-                        // apply pending skill hit now
-                        if (this._pendingSkill) {
-                            const { power, range, angle } = this._pendingSkill;
-                            if (this.onSkillHit && power > 0) {
-                                this.onSkillHit(power, range, angle ?? 360);
-                            }
-                            this._pendingSkill = null;
-                        }
                         this.animation.play("Idle_Loop");
                     }
                     if (clipName && allRollAnims.includes(clipName)) {
@@ -238,6 +224,32 @@ export default class Player {
         if (this.rollCooldown > 0) {
             this.rollCooldown -= delta;
             if (this.rollCooldown < 0) this.rollCooldown = 0;
+        }
+
+        // pending attack timer (apply hit mid-animation)
+        if (this._pendingAttackTimer > 0) {
+            this._pendingAttackTimer -= delta;
+            if (this._pendingAttackTimer <= 0 && this._pendingAttack) {
+                const { power, range, angle } = this._pendingAttack;
+                if (this.onAttackHit && power > 0) {
+                    this.onAttackHit(power, range, angle ?? 360);
+                }
+                this._pendingAttack = null;
+                this._pendingAttackTimer = 0;
+            }
+        }
+
+        // pending skill timer
+        if (this._pendingSkillTimer > 0) {
+            this._pendingSkillTimer -= delta;
+            if (this._pendingSkillTimer <= 0 && this._pendingSkill) {
+                const { power, range, angle } = this._pendingSkill;
+                if (this.onSkillHit && power > 0) {
+                    this.onSkillHit(power, range, angle ?? 360);
+                }
+                this._pendingSkill = null;
+                this._pendingSkillTimer = 0;
+            }
         }
 
         // ロール中の移動処理（短時間のインパルス）
@@ -407,7 +419,7 @@ export default class Player {
         // configから攻撃パラメータを取得してヒット判定コールバックを呼ぶ
         const config = this.characterConfigs[this.currentCharacter];
         if (config?.attackPower > 0) {
-            // defer hit until animation finishes
+            // defer hit until mid-animation
             this._pendingAttack = {
                 power: config.attackPower,
                 range: config.attackRange,
@@ -423,6 +435,15 @@ export default class Player {
             action.setLoop(THREE.LoopOnce);
             action.clampWhenFinished = true;
             this.animation.play(attackAnim);
+
+            // compute duration and schedule mid-hit
+            let clip = null;
+            try {
+                clip = action.getClip ? action.getClip() : action._clip;
+            } catch (_) { clip = action._clip ?? null; }
+            const duration = clip?.duration ?? 0.8; // fallback
+            const hitFraction = 0.5; // midpoint of animation
+            this._pendingAttackTimer = duration * hitFraction;
         } else {
             console.warn(`Attack animation not found for character: ${this.currentCharacter}`);
             // no animation -> apply immediately (fallback)
@@ -430,6 +451,7 @@ export default class Player {
                 const { power, range, angle } = this._pendingAttack;
                 if (power > 0) this.onAttackHit(power, range, angle ?? 360);
                 this._pendingAttack = null;
+                this._pendingAttackTimer = 0;
             }
             this.isAttacking = false;
         }
@@ -449,7 +471,7 @@ export default class Player {
         this.skillCooldownMax = cooldownMax;
         this.skillCooldown = cooldownMax;
 
-        // スキルヒット判定コールバックを呼ぶ（後でアニメ終了時に適用）
+        // スキルヒット判定コールバックを呼ぶ（後でアニメ中間で適用）
         if (config?.skillPower > 0) {
             this._pendingSkill = {
                 power: config.skillPower,
@@ -466,6 +488,15 @@ export default class Player {
             action.setLoop(THREE.LoopOnce);
             action.clampWhenFinished = true;
             this.animation.play(skillAnim);
+
+            // compute duration and schedule mid-hit
+            let clip = null;
+            try {
+                clip = action.getClip ? action.getClip() : action._clip;
+            } catch (_) { clip = action._clip ?? null; }
+            const duration = clip?.duration ?? 0.8;
+            const hitFraction = 0.5;
+            this._pendingSkillTimer = duration * hitFraction;
         } else {
             console.warn(`Skill animation not found for character: ${this.currentCharacter}`);
             // fallback: apply immediately
@@ -473,6 +504,7 @@ export default class Player {
                 const { power, range, angle } = this._pendingSkill;
                 if (power > 0) this.onSkillHit(power, range, angle ?? 360);
                 this._pendingSkill = null;
+                this._pendingSkillTimer = 0;
             }
             this.isUsingSkill = false;
         }
