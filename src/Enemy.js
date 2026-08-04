@@ -27,6 +27,10 @@ export const ENEMY_CONFIGS = {
         attackRange:    2.0,    // 攻撃が届く距離 (m) — stopDistance 以上推奨
         attackAngle:    90,     // 攻撃の扇形の全角度（度）。360 = 全方向
         attackCooldown: 2.0,    // 攻撃間隔 (秒)
+
+        // ノックバック
+        knockbackPower: 5.0,    // ノックバック力 (m/s)
+        knockbackDuration: 0.4, // ノックバック継続時間 (秒)
     },
     // "enemy2": {
     //     ...
@@ -58,6 +62,11 @@ export class Enemy {
 
         this.currentType = null;
 
+        // ノックバック関連
+        this.knockbackVelocity = new THREE.Vector3(0, 0, 0);
+        this.isKnockedBack = false;
+        this.knockbackTimer = 0;
+
         // Game.js から登録: (power) => void
         this.onAttackHit = null;
 
@@ -85,6 +94,11 @@ export class Enemy {
         this.isChasing = false;
         this.isAttacking = false;
         this.attackCooldownTimer = 0;
+
+        // ノックバックをリセット
+        this.knockbackVelocity.set(0, 0, 0);
+        this.isKnockedBack = false;
+        this.knockbackTimer = 0;
 
         const loader = new GLTFLoader();
         const gltf = await loader.loadAsync(config.modelPath);
@@ -146,11 +160,16 @@ export class Enemy {
     }
 
     // ── 被弾 ────────────────────────────────────────────────────
-    takeDamage(amount) {
+    takeDamage(amount, attackerPos = null) {
         if (!this.isAlive) return;
 
         this.currentHealth = Math.max(0, this.currentHealth - amount);
         this._redrawHealthBar();
+
+        // ノックバック適用
+        if (attackerPos && this.model) {
+            this._applyKnockback(attackerPos);
+        }
 
         if (this.currentHealth <= 0) {
             this._die();
@@ -160,6 +179,26 @@ export class Enemy {
         if (!this.isHit) {
             this._playHitAnim();
         }
+    }
+
+    _applyKnockback(attackerPos) {
+        const cfg = ENEMY_CONFIGS[this.currentType];
+        if (!cfg) return;
+
+        const knockbackPower = cfg.knockbackPower ?? 5.0;
+        const knockbackDuration = cfg.knockbackDuration ?? 0.4;
+
+        // 敵の方向ベクトル（攻撃者 → 敵）
+        const knockDir = new THREE.Vector3(
+            this.model.position.x - attackerPos.x,
+            0,
+            this.model.position.z - attackerPos.z
+        );
+        knockDir.normalize();
+
+        this.knockbackVelocity.copy(knockDir).multiplyScalar(knockbackPower);
+        this.isKnockedBack = true;
+        this.knockbackTimer = knockbackDuration;
     }
 
     _die() {
@@ -224,8 +263,8 @@ export class Enemy {
         if (dist <= detectionRange) {
             this.isChasing = true;
 
-            // 被弾中・攻撃中は移動しない
-            if (!this.isHit && !this.isAttacking) {
+            // 被弾中・攻撃中・ノックバック中は移動しない
+            if (!this.isHit && !this.isAttacking && !this.isKnockedBack) {
                 if (dist > stopDistance) {
                     const step = Math.min(moveSpeed * delta, dist - stopDistance);
                     const nx = dx / dist;
@@ -321,6 +360,28 @@ export class Enemy {
         }
     }
 
+    // ── ノックバック処理 ──────────────────────────────────────────
+    _updateKnockback(delta) {
+        if (!this.isKnockedBack || !this.model) return;
+
+        // ノックバック速度を適用
+        this.model.position.x += this.knockbackVelocity.x * delta;
+        this.model.position.z += this.knockbackVelocity.z * delta;
+
+        // 摩擦を追加（速度を減衰させる）
+        const friction = 0.85;
+        this.knockbackVelocity.multiplyScalar(friction);
+
+        // ノックバックタイマーを減らす
+        this.knockbackTimer -= delta;
+
+        if (this.knockbackTimer <= 0) {
+            this.isKnockedBack = false;
+            this.knockbackTimer = 0;
+            this.knockbackVelocity.set(0, 0, 0);
+        }
+    }
+
     // ── HP バー（シーン直下で追従）────────────────────────────────
     _createHealthBar() {
         const canvas = document.createElement("canvas");
@@ -379,6 +440,7 @@ export class Enemy {
         if (!this.model) return;
         if (this.mixer) this.mixer.update(delta);
         if (playerPos) this._updateAI(delta, playerPos);
+        this._updateKnockback(delta);
         this._applySeparation(allEnemies);
         this._syncHealthBarPosition();
     }
