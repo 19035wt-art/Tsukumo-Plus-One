@@ -152,8 +152,11 @@ export class Enemy {
                 if (this._pendingAttack) {
                     const { power } = this._pendingAttack;
                     if (this.onAttackHit && power > 0) {
-                        // pass attacker's position so Game.js can apply knockback correctly
-                        this.onAttackHit(power, this.model ? this.model.position : null);
+                        // NOTE: do NOT pass a captured attacker position here.
+                        // The game layer should re-check positions at the moment the attack hits
+                        // so call onAttackHit with only the power and let Game.js use the
+                        // current enemy.model.position when applying knockback.
+                        this.onAttackHit(power);
                     }
                     this._pendingAttack = null;
                 }
@@ -338,7 +341,9 @@ export class Enemy {
             // アニメなし → 即フラグ解除 + 即ヒット適用（互換）
             if (this._pendingAttack && this.onAttackHit) {
                 const { power } = this._pendingAttack;
-                this.onAttackHit(power, this.model ? this.model.position : null);
+                // NOTE: call onAttackHit without passing a captured position so the
+                // game layer can re-evaluate positions at the time of hit.
+                this.onAttackHit(power);
                 this._pendingAttack = null;
             }
             this.isAttacking = false;
