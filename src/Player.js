@@ -89,6 +89,10 @@ export default class Player {
         this.isKnockedBack = false;
         this.knockbackTimer = 0;
 
+        // pending for deferred hit application
+        this._pendingAttack = null; // { power, range, angle }
+        this._pendingSkill = null;  // { power, range, angle }
+
     }
 
     async load(character = "player") {
@@ -174,10 +178,27 @@ export default class Player {
 
                     if (clipName && allAttackAnims.includes(clipName)) {
                         this.isAttacking = false;
+                        // apply pending attack hit now (damage when animation finishes)
+                        if (this._pendingAttack) {
+                            const { power, range, angle } = this._pendingAttack;
+                            if (this.onAttackHit && power > 0) {
+                                this.onAttackHit(power, range, angle ?? 360);
+                            }
+                            this._pendingAttack = null;
+                        }
+
                         this.animation.play("Idle_Loop");
                     }
                     if (clipName && allSkillAnims.includes(clipName)) {
                         this.isUsingSkill = false;
+                        // apply pending skill hit now
+                        if (this._pendingSkill) {
+                            const { power, range, angle } = this._pendingSkill;
+                            if (this.onSkillHit && power > 0) {
+                                this.onSkillHit(power, range, angle ?? 360);
+                            }
+                            this._pendingSkill = null;
+                        }
                         this.animation.play("Idle_Loop");
                     }
                     if (clipName && allRollAnims.includes(clipName)) {
@@ -235,7 +256,7 @@ export default class Player {
             if (this._rollTimer <= 0) {
                 this.isRolling = false;
                 this._rollTimer = 0;
-                // アニメーションは mixer.finished イベントで���解除される
+                // アニメーションは mixer.finished イベントで解除される
             }
             // ロール中は入力による別アニメーション上書きしない
             return;
@@ -385,8 +406,13 @@ export default class Player {
 
         // configから攻撃パラメータを取得してヒット判定コールバックを呼ぶ
         const config = this.characterConfigs[this.currentCharacter];
-        if (this.onAttackHit && config?.attackPower > 0) {
-            this.onAttackHit(config.attackPower, config.attackRange, config.attackAngle ?? 360);
+        if (config?.attackPower > 0) {
+            // defer hit until animation finishes
+            this._pendingAttack = {
+                power: config.attackPower,
+                range: config.attackRange,
+                angle: config.attackAngle ?? 360
+            };
         }
 
         // configから攻撃アニメーション名を取得
@@ -399,6 +425,12 @@ export default class Player {
             this.animation.play(attackAnim);
         } else {
             console.warn(`Attack animation not found for character: ${this.currentCharacter}`);
+            // no animation -> apply immediately (fallback)
+            if (this._pendingAttack && this.onAttackHit) {
+                const { power, range, angle } = this._pendingAttack;
+                if (power > 0) this.onAttackHit(power, range, angle ?? 360);
+                this._pendingAttack = null;
+            }
             this.isAttacking = false;
         }
 
@@ -417,9 +449,13 @@ export default class Player {
         this.skillCooldownMax = cooldownMax;
         this.skillCooldown = cooldownMax;
 
-        // スキルヒット判定コールバックを呼ぶ
-        if (this.onSkillHit && config?.skillPower > 0) {
-            this.onSkillHit(config.skillPower, config.skillRange, config.skillAngle ?? 360);
+        // スキルヒット判定コールバックを呼ぶ（後でアニメ終了時に適用）
+        if (config?.skillPower > 0) {
+            this._pendingSkill = {
+                power: config.skillPower,
+                range: config.skillRange,
+                angle: config.skillAngle ?? 360
+            };
         }
 
         // configからスキルアニメーション名を取得
@@ -432,6 +468,12 @@ export default class Player {
             this.animation.play(skillAnim);
         } else {
             console.warn(`Skill animation not found for character: ${this.currentCharacter}`);
+            // fallback: apply immediately
+            if (this._pendingSkill && this.onSkillHit) {
+                const { power, range, angle } = this._pendingSkill;
+                if (power > 0) this.onSkillHit(power, range, angle ?? 360);
+                this._pendingSkill = null;
+            }
             this.isUsingSkill = false;
         }
 
