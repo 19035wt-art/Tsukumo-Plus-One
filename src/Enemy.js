@@ -2,9 +2,9 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import Animation from "./Animation.js";
 
-// ─────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────
 // 敵種別設定（新しい敵を追加するときはここにエントリを足すだけ）
-// ─────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────
 export const ENEMY_CONFIGS = {
     "enemy1": {
         modelPath:      "/models/enemy1.glb",
@@ -32,13 +32,6 @@ export const ENEMY_CONFIGS = {
         knockbackPower: 5.0,    // ノックバック力 (m/s)
         knockbackDuration: 0.4, // ノックバック継続時間 (秒)
     },
-    // "enemy2": {
-    //     ...
-    //     attackPower:    30,
-    //     attackRange:    2.5,
-    //     attackAngle:    60,
-    //     attackCooldown: 3.0,
-    // },
 };
 
 export class Enemy {
@@ -67,12 +60,15 @@ export class Enemy {
         this.isKnockedBack = false;
         this.knockbackTimer = 0;
 
-        // Game.js から登録: (power) => void
+        // Game.js から登録: (power[, attackerPos]) => void
         this.onAttackHit = null;
 
         this._hbSprite = null;
         this._hbTexture = null;
         this._hbCtx = null;
+
+        // pending attack to apply when attack animation finishes
+        this._pendingAttack = null;
     }
 
     /**
@@ -152,6 +148,15 @@ export class Enemy {
             }
             if (clipName === cfg.attackAnim) {
                 this.isAttacking = false;
+                // apply pending attack here (damage when animation finishes)
+                if (this._pendingAttack) {
+                    const { power } = this._pendingAttack;
+                    if (this.onAttackHit && power > 0) {
+                        // pass attacker's position so Game.js can apply knockback correctly
+                        this.onAttackHit(power, this.model ? this.model.position : null);
+                    }
+                    this._pendingAttack = null;
+                }
                 this._playMoveOrIdle();
             }
         });
@@ -316,8 +321,9 @@ export class Enemy {
         this.isAttacking = true;
         this.attackCooldownTimer = cfg.attackCooldown ?? 2.0;
 
-        if (this.onAttackHit) {
-            this.onAttackHit(cfg.attackPower);
+        // defer hit until animation ends
+        if (cfg.attackPower) {
+            this._pendingAttack = { power: cfg.attackPower };
         }
 
         // 攻撃アニメーション再生（存在する場合のみ）
@@ -329,7 +335,12 @@ export class Enemy {
             this.animation.current = null;
             this.animation.play(attackAnim);
         } else {
-            // アニメなし → 即フラグ解除
+            // アニメなし → 即フラグ解除 + 即ヒット適用（互換）
+            if (this._pendingAttack && this.onAttackHit) {
+                const { power } = this._pendingAttack;
+                this.onAttackHit(power, this.model ? this.model.position : null);
+                this._pendingAttack = null;
+            }
             this.isAttacking = false;
         }
     }
