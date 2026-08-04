@@ -4,7 +4,7 @@ import Player from "./Player.js";
 import Input from "./Input.js";
 import World from "./World.js";
 import UI from "./UI.js";
-import { Enemy } from "./Enemy.js";
+import { Enemy, ENEMY_CONFIGS } from "./Enemy.js";
 
 export default class Game {
 
@@ -83,18 +83,47 @@ export default class Game {
 
         // 各敵の攻撃ヒット時にプレイヤーへダメージを与えるコールバックを登録
         this.enemies.forEach((enemy) => {
+            // 変更点: 攻撃ヒット時にダメージを即適用するのではなく、
+            // ヒットが発生した "その瞬間" に距離・角度を再評価してから適用する。
             enemy.onAttackHit = (power) => {
-                if (this.player.isAlive) {
-                    // 変更: ロール中はダメージを無効化（回避成功）
-                    if (!this.player.isRolling) {
-                        // ノックバック付きでダメージ与える（敵の位置を渡す）
-                        this.player.takeDamage(power, enemy.model.position);
-                    } else {
-                        // 回避成功時の処理を入れたい場合はここに追加
-                        // 例: エフェクト再生、サウンド再生、無敵フラグ処理など
-                        // console.log("回避成功");
+                if (!this.player.isAlive) return;
+
+                // ロール（回避）中はダメージ無効
+                if (this.player.isRolling) return;
+
+                if (!enemy.model || !this.player.model) return;
+
+                // 攻撃が当たる距離・角度を再評価する
+                const cfg = ENEMY_CONFIGS[enemy.currentType] ?? {};
+                const attackRange = cfg.attackRange ?? cfg.stopDistance ?? 1.8;
+                const attackAngle = cfg.attackAngle ?? 360;
+
+                const dx = this.player.model.position.x - enemy.model.position.x;
+                const dz = this.player.model.position.z - enemy.model.position.z;
+                const dist = Math.sqrt(dx * dx + dz * dz);
+
+                if (dist > attackRange) {
+                    // 範囲外 -> 命中しない
+                    return;
+                }
+
+                if (attackAngle < 360 && dist > 0.001) {
+                    const halfRad = (attackAngle / 2) * (Math.PI / 180);
+                    const nx = dx / dist;
+                    const nz = dz / dist;
+                    // 敵の正面ベクトル（rotation.y 基準）
+                    const fx = Math.sin(enemy.model.rotation.y);
+                    const fz = Math.cos(enemy.model.rotation.y);
+                    const dot = fx * nx + fz * nz;
+                    const angle = Math.acos(Math.max(-1, Math.min(1, dot)));
+                    if (angle > halfRad) {
+                        // 角度外 -> 命中しない
+                        return;
                     }
                 }
+
+                // 当たっていればダメージを与える（ノックバック用に攻撃者位置を渡す）
+                this.player.takeDamage(power, enemy.model.position);
             };
         });
 
