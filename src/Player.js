@@ -84,6 +84,11 @@ export default class Player {
         this.currentHealth = 100;
         this.isAlive = true;
 
+        // ノックバック関連
+        this.knockbackVelocity = new THREE.Vector3(0, 0, 0);
+        this.isKnockedBack = false;
+        this.knockbackTimer = 0;
+
     }
 
     async load(character = "player") {
@@ -106,6 +111,11 @@ export default class Player {
                 this.currentCharacter = character;
                 this.currentHealth = this.maxHealth;
                 this.isAlive = true;
+
+                // ノックバックをリセット
+                this.knockbackVelocity.set(0, 0, 0);
+                this.isKnockedBack = false;
+                this.knockbackTimer = 0;
 
                 // キャラクターを同じ身長に調整
                 const config = this.characterConfigs[character];
@@ -225,11 +235,14 @@ export default class Player {
             if (this._rollTimer <= 0) {
                 this.isRolling = false;
                 this._rollTimer = 0;
-                // アニメーションは mixer.finished イベントでも解除される
+                // アニメーションは mixer.finished イベントで���解除される
             }
             // ロール中は入力による別アニメーション上書きしない
             return;
         }
+
+        // ノックバック処理
+        this._updateKnockback(delta);
 
         if (this.isAttacking || this.isUsingSkill) {
             return;
@@ -246,6 +259,9 @@ export default class Player {
 
         // 攻撃・スキル中は移動アニメーションで上書きしない
         if (this.isAttacking || this.isUsingSkill) return;
+
+        // ノックバック中は移動入力を無視（ノックバック移動のみ）
+        if (this.isKnockedBack) return;
 
         const dir = new THREE.Vector2(x, -y);
 
@@ -307,14 +323,60 @@ export default class Player {
 
     }
 
+    // ── ノックバック処理 ──────────────────────────────────────────
+    _applyKnockback(attackerPos) {
+        const knockbackPower = 4.0;     // プレイヤーへのノックバック力
+        const knockbackDuration = 0.3;  // プレイヤーへのノックバック継続時間
+
+        // プレイヤーの方向ベクトル（攻撃者 → プレイヤー）
+        const knockDir = new THREE.Vector3(
+            this.model.position.x - attackerPos.x,
+            0,
+            this.model.position.z - attackerPos.z
+        );
+        knockDir.normalize();
+
+        this.knockbackVelocity.copy(knockDir).multiplyScalar(knockbackPower);
+        this.isKnockedBack = true;
+        this.knockbackTimer = knockbackDuration;
+    }
+
+    _updateKnockback(delta) {
+        if (!this.isKnockedBack || !this.model) return;
+
+        // ノックバック速度を適用
+        this.model.position.x += this.knockbackVelocity.x * delta;
+        this.model.position.z += this.knockbackVelocity.z * delta;
+
+        // 摩擦を追加（速度を減衰させる）
+        const friction = 0.85;
+        this.knockbackVelocity.multiplyScalar(friction);
+
+        // ノックバックタイマーを減らす
+        this.knockbackTimer -= delta;
+
+        if (this.knockbackTimer <= 0) {
+            this.isKnockedBack = false;
+            this.knockbackTimer = 0;
+            this.knockbackVelocity.set(0, 0, 0);
+        }
+    }
+
     // 体力管理メソッド
-    takeDamage(damage) {
+    takeDamage(damage, attackerPos = null) {
         this.currentHealth = Math.max(0, this.currentHealth - damage);
+        
+        // ノックバック適用
+        if (attackerPos && this.model) {
+            this._applyKnockback(attackerPos);
+        }
+        
         if (this.currentHealth <= 0) {
             this.isAlive = false;
             this.animation.play("Death_Loop");
         }
     }
+
     attack() {
 
         if (this.isAttacking || this.isUsingSkill) return;
