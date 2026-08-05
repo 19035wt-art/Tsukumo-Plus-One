@@ -36,6 +36,7 @@ export default class Player {
         // 新キャラ追加時はここにエントリを追加するだけでOK
         // attackAnimSpeed / skillAnimSpeed を追加してアニメーション再生速度を個別設定できるようにする
         // combo 関連設定を追加: comboMax, comboTimeout, comboDamageStep, comboKnockbackStep
+        // skillEffect / skillBuff を追加して将来のサポート系スキル（バフ付与）に対応
         this.characterConfigs = {
             "player": {
                 height: 1.8,
@@ -61,6 +62,8 @@ export default class Player {
                 comboTimeout: 1.5,
                 comboDamageStep: 0.15,
                 comboKnockbackStep: 0.2,
+                // 例: サポート向けのバフ定義（未使用のままでもOK）
+                // skillBuff: { stat: 'attack'|'defense', magnitude: 0.2, duration: 8 }
             },
             "ShooterA": {
                 height: 1.8,
@@ -115,9 +118,13 @@ export default class Player {
 
         // pending for deferred hit application
         this._pendingAttack = null; // { power, range, angle }
-        this._pendingSkill = null;  // { power, range, angle }
+        this._pendingSkill = null;  // { power, range, angle, buff }
         this._pendingAttackTimer = 0; // seconds until hit application
         this._pendingSkillTimer = 0;  // seconds until hit application
+
+        // バフ管理: プレイヤーにかかっているバフのリスト
+        // 各バフ: { id, stat: 'attack'|'defense', magnitude: number (0.2 = +20%), remaining: seconds, source }
+        this.buffs = [];
 
     }
 
@@ -254,6 +261,17 @@ export default class Player {
             if (this.rollCooldown < 0) this.rollCooldown = 0;
         }
 
+        // バフの更新（残り時間を減らし、期限切れは除去）
+        if (this.buffs && this.buffs.length) {
+            for (let i = this.buffs.length - 1; i >= 0; --i) {
+                const b = this.buffs[i];
+                b.remaining -= delta;
+                if (b.remaining <= 0) {
+                    this.buffs.splice(i, 1);
+                }
+            }
+        }
+
         // コンボタイマー更新（一定時間ヒットが無ければコンボをリセット）
         if (this._comboTimer > 0) {
             this._comboTimer -= delta;
@@ -269,7 +287,11 @@ export default class Player {
             if (this._pendingAttackTimer <= 0 && this._pendingAttack) {
                 const { power, range, angle } = this._pendingAttack;
                 if (this.onAttackHit && power > 0) {
-                    this.onAttackHit(power, range, angle ?? 360);
+                    // apply combo & buff multipliers at the time of hit
+                    const { damageMul } = this.getComboMultipliers();
+                    const attackBuffMul = this.getAttackBuffMultiplier();
+                    const finalPower = power * damageMul * attackBuffMul;
+                    this.onAttackHit(finalPower, range, angle ?? 360);
                 }
                 this._pendingAttack = null;
                 this._pendingAttackTimer = 0;
@@ -280,9 +302,20 @@ export default class Player {
         if (this._pendingSkillTimer > 0) {
             this._pendingSkillTimer -= delta;
             if (this._pendingSkillTimer <= 0 && this._pendingSkill) {
-                const { power, range, angle } = this._pendingSkill;
+                const { power, range, angle, buff } = this._pendingSkill;
+                // 先にバフを適用（これによりスキルで同時にバフ+ダメージを行う場合、バフがダメージに影響する）
+                if (buff) {
+                    try {
+                        // buff: { stat, magnitude, duration, source }
+                        this.applyBuff(buff);
+                    } catch (e) { /* ignore */ }
+                }
                 if (this.onSkillHit && power > 0) {
-                    this.onSkillHit(power, range, angle ?? 360);
+                    // apply combo & buff multipliers to skill damage as well
+                    const { damageMul } = this.getComboMultipliers();
+                    const attackBuffMul = this.getAttackBuffMultiplier();
+                    const finalPower = power * damageMul * attackBuffMul;
+                    this.onSkillHit(finalPower, range, angle ?? 360);
                 }
                 this._pendingSkill = null;
                 this._pendingSkillTimer = 0;
@@ -327,7 +360,7 @@ export default class Player {
         // ロール中は入力でアニメーションを上書きしない
         if (this.isRolling) return;
 
-        // 攻撃・スキル中���移動アニメーションで上書きしない
+        // 攻撃・スキル中に移動アニメーションで上書きしない
         if (this.isAttacking || this.isUsingSkill) return;
 
         // ノックバック中は移動入力を無視（ノックバック移動のみ）
@@ -434,7 +467,11 @@ export default class Player {
 
     // 体力管理メソッド
     takeDamage(damage, attackerPos = null) {
-        this.currentHealth = Math.max(0, this.currentHealth - damage);
+        // バフ（防御）を加味してダメージを軽減
+        const defenseReduction = this.getDefenseReduction(); // 0.0 - 0.9 の範囲
+        const netDamage = Math.max(0, damage * (1 - defenseReduction));
+
+        this.currentHealth = Math.max(0, this.currentHealth - netDamage);
         
         // ノックバック適用
         if (attackerPos && this.model) {
@@ -459,6 +496,44 @@ export default class Player {
         const damageMul = 1 + Math.max(0, activeCombo - 1) * damageStep;
         const knockbackMul = 1 + Math.max(0, activeCombo - 1) * knockbackStep;
         return { damageMul, knockbackMul };
+    }
+
+    // バフ管理ユーティリティ
+    applyBuff(buff) {
+        // buff: { stat: 'attack'|'defense', magnitude: 0.2, duration: seconds, source }
+        if (!buff || !buff.stat || !buff.magnitude || !buff.duration) return null;
+        const id = (Date.now().toString(36) + Math.random().toString(36).slice(2,8));
+        const b = {
+            id,
+            stat: buff.stat,
+            magnitude: buff.magnitude,
+            remaining: buff.duration,
+            source: buff.source || null
+        };
+        this.buffs.push(b);
+        return id;
+    }
+
+    removeBuff(id) {
+        if (!id) return;
+        this.buffs = this.buffs.filter(b => b.id !== id);
+    }
+
+    // 与ダメージに乗る攻撃力バフの合算倍率を返す（例: +20% -> 1.2）
+    getAttackBuffMultiplier() {
+        if (!this.buffs || this.buffs.length === 0) return 1.0;
+        const sum = this.buffs.filter(b => b.stat === 'attack')
+            .reduce((s, b) => s + (b.magnitude || 0), 0);
+        return 1 + sum;
+    }
+
+    // 防御バフの合算（ダメージ軽減値 0.0 - 0.9 を想定）
+    getDefenseReduction() {
+        if (!this.buffs || this.buffs.length === 0) return 0.0;
+        const sum = this.buffs.filter(b => b.stat === 'defense')
+            .reduce((s, b) => s + (b.magnitude || 0), 0);
+        // 上限を設けて最大 90% 軽減までにする
+        return Math.min(0.9, sum);
     }
 
     // コンボヒットを記録（敵に当たったら Game.js から呼ぶ）
@@ -536,7 +611,8 @@ export default class Player {
     }
    useSkill() {
 
-        if (this.isAttacking || this.isUsingSkill) return;
+        // allow using buff-type skills even while attacking (サポートスキルを攻撃と同時に行いたいため)
+        if (this.isUsingSkill) return;
 
         if (this.skillCooldown > 0) return;
 
@@ -549,12 +625,20 @@ export default class Player {
         this.skillCooldown = cooldownMax;
 
         // スキルヒット判定コールバックを呼ぶ（後でアニメ中間で適用）
+        // サポート（バフ）効果が存在する場合はバフ情報も pending に含める
+        const pending = {};
         if (config?.skillPower > 0) {
-            this._pendingSkill = {
-                power: config.skillPower,
-                range: config.skillRange,
-                angle: config.skillAngle ?? 360
-            };
+            pending.power = config.skillPower;
+            pending.range = config.skillRange;
+            pending.angle = config.skillAngle ?? 360;
+        }
+        if (config?.skillBuff) {
+            // skillBuff: { stat: 'attack'|'defense', magnitude: 0.2, duration: seconds, source }
+            pending.buff = config.skillBuff;
+        }
+
+        if (Object.keys(pending).length > 0) {
+            this._pendingSkill = pending;
         }
 
         // configからスキルアニメーション名を取得
@@ -590,10 +674,16 @@ export default class Player {
             this._pendingSkillTimer = effectiveDuration * hitFraction;
         } else {
             console.warn(`Skill animation not found for character: ${this.currentCharacter}`);
-            // fallback: apply immediately
-            if (this._pendingSkill && this.onSkillHit) {
-                const { power, range, angle } = this._pendingSkill;
-                if (power > 0) this.onSkillHit(power, range, angle ?? 360);
+            // fallback: apply immediately (buffs and/or damage)
+            if (this._pendingSkill) {
+                const { power, range, angle, buff } = this._pendingSkill;
+                if (buff) this.applyBuff(buff);
+                if (power > 0 && this.onSkillHit) {
+                    const { damageMul } = this.getComboMultipliers();
+                    const attackBuffMul = this.getAttackBuffMultiplier();
+                    const finalPower = power * damageMul * attackBuffMul;
+                    this.onSkillHit(finalPower, range, angle ?? 360);
+                }
                 this._pendingSkill = null;
                 this._pendingSkillTimer = 0;
             }
