@@ -34,6 +34,7 @@ export default class Player {
 
         // キャラクター固有の設定
         // 新キャラ追加時はここにエントリを追加するだけでOK
+        // attackAnimSpeed / skillAnimSpeed を追加してアニメーション再生速度を個別設定できるようにする
         this.characterConfigs = {
             "player": {
                 height: 1.8,
@@ -51,6 +52,9 @@ export default class Player {
                 rollCooldownMax: 0,
                 rollSpeed: 0,
                 rollDuration: 0,
+                // アニメーション速度（1.0 が通常）
+                attackAnimSpeed: 1.0,
+                skillAnimSpeed: 1.0,
             },
             "ShooterA": {
                 height: 1.8,
@@ -69,6 +73,9 @@ export default class Player {
                 rollCooldownMax: 3, // 秒
                 rollSpeed: 8, // ロール時の速度（m/s 相当）
                 rollDuration: 0.4, // ロール継続時間（秒）
+                // アニメーション速度（必要に応じて調整）
+                attackAnimSpeed: 1.0,
+                skillAnimSpeed: 1.0,
             }
         };
 
@@ -434,6 +441,21 @@ export default class Player {
             const action = this.actions[attackAnim];
             action.setLoop(THREE.LoopOnce);
             action.clampWhenFinished = true;
+
+            // アニメーション速度を技別に設定
+            const animSpeed = config?.attackAnimSpeed ?? 1.0;
+            try {
+                // AnimationAction may support timeScale directly
+                if (typeof action.setEffectiveTimeScale === 'function') {
+                    action.setEffectiveTimeScale(animSpeed);
+                } else {
+                    action.timeScale = animSpeed;
+                }
+            } catch (e) {
+                // ignore if not supported
+                try { action.timeScale = animSpeed; } catch (_) { }
+            }
+
             this.animation.play(attackAnim);
 
             // compute duration and schedule mid-hit
@@ -441,9 +463,10 @@ export default class Player {
             try {
                 clip = action.getClip ? action.getClip() : action._clip;
             } catch (_) { clip = action._clip ?? null; }
-            const duration = clip?.duration ?? 0.8; // fallback
+            const duration = clip?.duration ?? 0.8; // base duration
+            const effectiveDuration = duration / (animSpeed || 1);
             const hitFraction = 0.5; // midpoint of animation
-            this._pendingAttackTimer = duration * hitFraction;
+            this._pendingAttackTimer = effectiveDuration * hitFraction;
         } else {
             console.warn(`Attack animation not found for character: ${this.currentCharacter}`);
             // no animation -> apply immediately (fallback)
@@ -487,6 +510,19 @@ export default class Player {
             const action = this.actions[skillAnim];
             action.setLoop(THREE.LoopOnce);
             action.clampWhenFinished = true;
+
+            // スキルアニメーション速度を設定
+            const animSpeed = config?.skillAnimSpeed ?? 1.0;
+            try {
+                if (typeof action.setEffectiveTimeScale === 'function') {
+                    action.setEffectiveTimeScale(animSpeed);
+                } else {
+                    action.timeScale = animSpeed;
+                }
+            } catch (e) {
+                try { action.timeScale = animSpeed; } catch (_) { }
+            }
+
             this.animation.play(skillAnim);
 
             // compute duration and schedule mid-hit
@@ -495,8 +531,9 @@ export default class Player {
                 clip = action.getClip ? action.getClip() : action._clip;
             } catch (_) { clip = action._clip ?? null; }
             const duration = clip?.duration ?? 0.8;
+            const effectiveDuration = duration / (animSpeed || 1);
             const hitFraction = 0.5;
-            this._pendingSkillTimer = duration * hitFraction;
+            this._pendingSkillTimer = effectiveDuration * hitFraction;
         } else {
             console.warn(`Skill animation not found for character: ${this.currentCharacter}`);
             // fallback: apply immediately
@@ -508,7 +545,6 @@ export default class Player {
             }
             this.isUsingSkill = false;
         }
-
     }
     // 追加：回避（Roll）
     roll() {
