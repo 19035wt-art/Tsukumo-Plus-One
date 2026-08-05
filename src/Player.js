@@ -35,6 +35,7 @@ export default class Player {
         // キャラクター固有の設定
         // 新キャラ追加時はここにエントリを追加するだけでOK
         // attackAnimSpeed / skillAnimSpeed を追加してアニメーション再生速度を個別設定できるようにする
+        // combo 関連設定を追加: comboMax, comboTimeout, comboDamageStep, comboKnockbackStep
         this.characterConfigs = {
             "player": {
                 height: 1.8,
@@ -55,6 +56,11 @@ export default class Player {
                 // アニメーション速度（1.0 が通常）
                 attackAnimSpeed: 1.0,
                 skillAnimSpeed: 1.0,
+                // コンボ設定（デフォルト: コンボなし）
+                comboMax: 1,
+                comboTimeout: 1.5,
+                comboDamageStep: 0.15,
+                comboKnockbackStep: 0.2,
             },
             "ShooterA": {
                 height: 1.8,
@@ -76,8 +82,19 @@ export default class Player {
                 // アニメーション速度（必要に応じて調整）
                 attackAnimSpeed: 2.0,
                 skillAnimSpeed: 1.5,
+                // コンボ設定
+                comboMax: 4,
+                comboTimeout: 1.6,
+                // ダメージ増加（1ヒット目は増加なし。2ヒット目以降は (comboCount-1)*comboDamageStep が乗る）
+                comboDamageStep: 0.18,
+                // ノックバック増加倍率ステップ（1.0 が基準、累積は 1 + (comboCount-1)*comboKnockbackStep）
+                comboKnockbackStep: 0.25,
             }
         };
+
+        // コンボ状態
+        this.comboCount = 0;      // 現在のコンボヒット回数（1 から始まる）
+        this._comboTimer = 0;     // 残り時間（秒） コンボのリセットタイマー
 
         // 攻撃ヒット時のコールバック (power, range) => void
         // Game.js から登録して距離チェック・ダメージ適用を行う
@@ -129,6 +146,10 @@ export default class Player {
                 this.knockbackVelocity.set(0, 0, 0);
                 this.isKnockedBack = false;
                 this.knockbackTimer = 0;
+
+                // コンボをリセット
+                this.comboCount = 0;
+                this._comboTimer = 0;
 
                 // キャラクターを同じ身長に調整
                 const config = this.characterConfigs[character];
@@ -233,6 +254,15 @@ export default class Player {
             if (this.rollCooldown < 0) this.rollCooldown = 0;
         }
 
+        // コンボタイマー更新（一定時間ヒットが無ければコンボをリセット）
+        if (this._comboTimer > 0) {
+            this._comboTimer -= delta;
+            if (this._comboTimer <= 0) {
+                this.comboCount = 0;
+                this._comboTimer = 0;
+            }
+        }
+
         // pending attack timer (apply hit mid-animation)
         if (this._pendingAttackTimer > 0) {
             this._pendingAttackTimer -= delta;
@@ -297,7 +327,7 @@ export default class Player {
         // ロール中は入力でアニメーションを上書きしない
         if (this.isRolling) return;
 
-        // 攻撃・スキル中は移動アニメーションで上書きしない
+        // 攻撃・スキル中���移動アニメーションで上書きしない
         if (this.isAttacking || this.isUsingSkill) return;
 
         // ノックバック中は移動入力を無視（ノックバック移動のみ）
@@ -415,6 +445,30 @@ export default class Player {
             this.isAlive = false;
             this.animation.play("Death_Loop");
         }
+    }
+
+    // コンボ関連: 現在のコンボからダメージ/ノックバック倍率を返す
+    getComboMultipliers() {
+        const cfg = this.characterConfigs[this.currentCharacter] || {};
+        const comboMax = cfg.comboMax ?? 1;
+        const damageStep = cfg.comboDamageStep ?? 0.15;
+        const knockbackStep = cfg.comboKnockbackStep ?? 0.2;
+
+        const activeCombo = Math.max(0, Math.min(this.comboCount, comboMax)) ;
+        // multiplier: 1 + (comboCount - 1) * step (1st hit = no bonus)
+        const damageMul = 1 + Math.max(0, activeCombo - 1) * damageStep;
+        const knockbackMul = 1 + Math.max(0, activeCombo - 1) * knockbackStep;
+        return { damageMul, knockbackMul };
+    }
+
+    // コンボヒットを記録（敵に当たったら Game.js から呼ぶ）
+    recordSuccessfulHit() {
+        const cfg = this.characterConfigs[this.currentCharacter] || {};
+        const comboMax = cfg.comboMax ?? 1;
+        const timeout = cfg.comboTimeout ?? 1.5;
+
+        this.comboCount = Math.min(comboMax, this.comboCount + 1);
+        this._comboTimer = timeout;
     }
 
     attack() {
