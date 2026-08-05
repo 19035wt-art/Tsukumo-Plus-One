@@ -74,8 +74,8 @@ export default class Player {
                 rollSpeed: 8, // ロール時の速度（m/s 相当）
                 rollDuration: 0.4, // ロール継続時間（秒）
                 // アニメーション速度（必要に応じて調整）
-                attackAnimSpeed: 1.0,
-                skillAnimSpeed: 1.0,
+                attackAnimSpeed: 2.0,
+                skillAnimSpeed: 1.5,
             }
         };
 
