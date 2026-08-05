@@ -74,7 +74,7 @@ export default class Player {
                 attackPower: 20,
                 attackRange: 2.5,
                 attackAngle: 80,   // 正面±40°の扇形
-                skillPower: 50,
+                skillPower: 30,
                 skillRange: 5.0,
                 skillAngle: 120,   // 正面±60°の扇形（スキルは広め）
                 // 回避設定（例）
@@ -92,6 +92,7 @@ export default class Player {
                 comboDamageStep: 0.18,
                 // ノックバック増加倍率ステップ（1.0 が基準、累積は 1 + (comboCount-1)*comboKnockbackStep）
                 comboKnockbackStep: 0.25,
+                skillBuff: { stat: 'attack', magnitude: 0.1, duration: 8, source: 'ShooterA' },
             }
         };
 
