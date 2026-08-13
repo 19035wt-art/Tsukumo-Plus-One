@@ -6,8 +6,8 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
  * 各種飛び道具の3Dモデル、速度、サイズなどを定義
  */
 export const PROJECTILE_CONFIGS = {
-    "fireball": {
-        modelPath: "/models/projectile_fireball.glb",
+    "bullet": {
+        modelPath: "/models/Bullet.glb",
         speed: 20,           // m/s
         lifetime: 5,         // 秒
         scale: 1.0,
