@@ -29,7 +29,7 @@ export default class Player {
 
         // キャラクター管理
         this.currentCharacter = "player";
-        this.availableCharacters = ["player", "ShooterA"];
+        this.availableCharacters = ["player", "ShooterA", "ShooterB"];
         this.characterIndex = 0;
 
         // キャラクター固有の設定
@@ -134,7 +134,7 @@ export default class Player {
                 comboDamageStep: 0.18,
                 // ノックバック増加倍率ステップ（1.0 が基準、累積は 1 + (comboCount-1)*comboKnockbackStep）
                 comboKnockbackStep: 0.25,
-                skillBuff: { stat: 'attack', magnitude: 0.1, duration: 8, source: 'ShooterA' },
+                skillBuff: { stat: 'attack', magnitude: 0.1, duration: 8, source: 'ShooterB' },
             }
             
         };
