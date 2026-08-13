@@ -307,7 +307,21 @@ this.player.onFireProjectile = async ({ type, startPos, direction, power }) => {
         if (this.enemies && this.enemies.length) {
             this.enemies.forEach((e) => e.update(delta, playerPos, this.enemies));
         }
+// 飛び道具更新
+if (this.projectiles.length) {
+    for (const projectile of this.projectiles) {
+        projectile.update(delta, this.enemies);
+    }
 
+    for (let i = this.projectiles.length - 1; i >= 0; i--) {
+        const projectile = this.projectiles[i];
+
+        if (projectile.isAlive === false) {
+            projectile.destroy();
+            this.projectiles.splice(i, 1);
+        }
+    }
+}
         this.ui.updateHealthBar(
             this.player.currentHealth,
             this.player.maxHealth
