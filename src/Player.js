@@ -103,7 +103,40 @@ export default class Player {
                 // ノックバック増加倍率ステップ（1.0 が基準、累積は 1 + (comboCount-1)*comboKnockbackStep）
                 comboKnockbackStep: 0.25,
                 skillBuff: { stat: 'attack', magnitude: 0.1, duration: 8, source: 'ShooterA' },
+            },
+            "ShooterB": {
+                height: 1.8,
+                scale: 1.0,
+                attackAnim: "Pistol_Shot",
+                skillAnim: "Pistol_Shot",
+                skillCooldownMax: 5,
+                attackPower: 10,
+                attackRange: 2.5,
+                attackAngle: 80,   // 正面±40°の扇形
+                attackType: "ranged",  // 通常攻撃は近接
+                skillPower: 20,
+                skillRange: 5.0,
+                skillAngle: 120,   // 正面±60°の扇形（スキルは広め）
+                skillType: "ranged", 
+                projectileType: "bullet", // 発射する飛び道具
+                // 回避設定（例）
+                rollAnim: "Roll",
+                rollCooldownMax: 3, // 秒
+                rollSpeed: 8, // ロール時の速度（m/s 相当）
+                rollDuration: 0.4, // ロール継続時間（秒）
+                // アニメーション速度（必要に応じて調整）
+                attackAnimSpeed: 2.0,
+                skillAnimSpeed: 1.5,
+                // コンボ設定
+                comboMax: 4,
+                comboTimeout: 1.6,
+                // ダメージ増加（1ヒット目は増加なし。2ヒット目以降は (comboCount-1)*comboDamageStep が乗る）
+                comboDamageStep: 0.18,
+                // ノックバック増加倍率ステップ（1.0 が基準、累積は 1 + (comboCount-1)*comboKnockbackStep）
+                comboKnockbackStep: 0.25,
+                skillBuff: { stat: 'attack', magnitude: 0.1, duration: 8, source: 'ShooterA' },
             }
+            
         };
 
         // コンボ状態
