@@ -85,7 +85,8 @@ export default class Player {
                 skillPower: 30,
                 skillRange: 5.0,
                 skillAngle: 120,   // 正面±60°の扇形（スキルは広め）
-                skillType: "melee",    // 発射する飛び道具
+                skillType: "melee", 
+                projectileType: null, // 発射する飛び道具
                 // 回避設定（例）
                 rollAnim: "Roll",
                 rollCooldownMax: 3, // 秒
