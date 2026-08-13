@@ -37,6 +37,10 @@ export default class Player {
         // attackAnimSpeed / skillAnimSpeed を追加してアニメーション再生速度を個別設定できるようにする
         // combo 関連設定を追加: comboMax, comboTimeout, comboDamageStep, comboKnockbackStep
         // skillEffect / skillBuff を追加して将来のサポート系スキル（バフ付与）に対応
+        // ── 攻撃・スキルの遠距離/近接設定 ──
+        // attackType: "melee" (近接) or "ranged" (遠距離)
+        // skillType: "melee" or "ranged"
+        // projectileType: 飛び道具のタイプ（ranged の場合に使用、cf. Projectile.js の PROJECTILE_CONFIGS）
         this.characterConfigs = {
             "player": {
                 height: 1.8,
@@ -47,9 +51,12 @@ export default class Player {
                 attackPower: 0,
                 attackRange: 0,
                 attackAngle: 360, // 度数（360 = 全方向）
+                attackType: "melee", // "melee" or "ranged"
                 skillPower: 0,
                 skillRange: 0,
                 skillAngle: 360,
+                skillType: "melee",
+                projectileType: null, // ranged の場合の飛び道具タイプ
                 rollAnim: null, // 追加
                 rollCooldownMax: 0,
                 rollSpeed: 0,
@@ -74,9 +81,12 @@ export default class Player {
                 attackPower: 20,
                 attackRange: 2.5,
                 attackAngle: 80,   // 正面±40°の扇形
+                attackType: "melee",  // 通常攻撃は近接
                 skillPower: 30,
                 skillRange: 5.0,
                 skillAngle: 120,   // 正面±60°の扇形（スキルは広め）
+                skillType: "ranged",  // スキルは遠距離
+                projectileType: "fireball",  // 発射する飛び道具
                 // 回避設定（例）
                 rollAnim: "Roll",
                 rollCooldownMax: 3, // 秒
@@ -100,12 +110,16 @@ export default class Player {
         this.comboCount = 0;      // 現在のコンボヒット回数（1 から始まる）
         this._comboTimer = 0;     // 残り時間（秒） コンボのリセットタイマー
 
-        // 攻撃ヒット時のコールバック (power, range) => void
+        // 攻撃ヒット時のコールバック (power, range, angle) => void
         // Game.js から登録して距離チェック・ダメージ適用を行う
         this.onAttackHit = null;
 
-        // スキルヒット時のコールバック (power, range) => void
+        // スキルヒット時のコールバック (power, range, angle) => void
         this.onSkillHit = null;
+
+        // 飛び道具発射時のコールバック (projectile) => void
+        // Game.js から登録してシーンに追加・管理する
+        this.onFireProjectile = null;
 
         // ステータス管理
         this.maxHealth = 100;
@@ -118,8 +132,8 @@ export default class Player {
         this.knockbackTimer = 0;
 
         // pending for deferred hit application
-        this._pendingAttack = null; // { power, range, angle }
-        this._pendingSkill = null;  // { power, range, angle, buff }
+        this._pendingAttack = null; // { power, range, angle, type, projectileType }
+        this._pendingSkill = null;  // { power, range, angle, buff, type, projectileType }
         this._pendingAttackTimer = 0; // seconds until hit application
         this._pendingSkillTimer = 0;  // seconds until hit application
 
@@ -286,9 +300,13 @@ export default class Player {
         if (this._pendingAttackTimer > 0) {
             this._pendingAttackTimer -= delta;
             if (this._pendingAttackTimer <= 0 && this._pendingAttack) {
-                const { power, range, angle } = this._pendingAttack;
-                if (this.onAttackHit && power > 0) {
-                    // apply combo & buff multipliers at the time of hit
+                const { power, range, angle, type, projectileType } = this._pendingAttack;
+                
+                if (type === "ranged" && this.onFireProjectile && projectileType) {
+                    // 遠距離攻撃：飛び道具を発射
+                    this._fireProjectile(projectileType, power, angle);
+                } else if (this.onAttackHit && power > 0) {
+                    // 近接攻撃：通常のダメージ判定
                     const { damageMul } = this.getComboMultipliers();
                     const attackBuffMul = this.getAttackBuffMultiplier();
                     const finalPower = power * damageMul * attackBuffMul;
@@ -303,7 +321,8 @@ export default class Player {
         if (this._pendingSkillTimer > 0) {
             this._pendingSkillTimer -= delta;
             if (this._pendingSkillTimer <= 0 && this._pendingSkill) {
-                const { power, range, angle, buff } = this._pendingSkill;
+                const { power, range, angle, buff, type, projectileType } = this._pendingSkill;
+                
                 // 先にバフを適用（これによりスキルで同時にバフ+ダメージを行う場合、バフがダメージに影響する）
                 if (buff) {
                     try {
@@ -311,8 +330,12 @@ export default class Player {
                         this.applyBuff(buff);
                     } catch (e) { /* ignore */ }
                 }
-                if (this.onSkillHit && power > 0) {
-                    // apply combo & buff multipliers to skill damage as well
+
+                if (type === "ranged" && this.onFireProjectile && projectileType) {
+                    // 遠距離スキル：飛び道具を発射
+                    this._fireProjectile(projectileType, power, angle);
+                } else if (this.onSkillHit && power > 0) {
+                    // 近接スキル：通常のダメージ判定
                     const { damageMul } = this.getComboMultipliers();
                     const attackBuffMul = this.getAttackBuffMultiplier();
                     const finalPower = power * damageMul * attackBuffMul;
@@ -466,6 +489,36 @@ export default class Player {
         }
     }
 
+    // ── 飛び道具発射 ──────────────────────────────────────────
+    _fireProjectile(projectileType, power, angle) {
+        if (!this.onFireProjectile || !this.model) return;
+
+        // プレイヤーの前方方向
+        const direction = new THREE.Vector3(
+            Math.sin(this.rotation),
+            0,
+            Math.cos(this.rotation)
+        );
+
+        // 発射開始位置（プレイヤーの前方、やや上）
+        const startPos = this.model.position.clone();
+        startPos.y += 1.0; // 胸部辺りから発射
+
+        // ダメージにコンボ・バフ倍率を適用
+        const { damageMul } = this.getComboMultipliers();
+        const attackBuffMul = this.getAttackBuffMultiplier();
+        const finalPower = power * damageMul * attackBuffMul;
+
+        // 飛び道具を発射（Game.js で敵判定を行う）
+        this.onFireProjectile({
+            type: projectileType,
+            startPos,
+            direction,
+            power: finalPower,
+            angle
+        });
+    }
+
     // 体力管理メソッド
     takeDamage(damage, attackerPos = null) {
         // バフ（防御）を加味してダメージを軽減
@@ -560,7 +613,9 @@ export default class Player {
             this._pendingAttack = {
                 power: config.attackPower,
                 range: config.attackRange,
-                angle: config.attackAngle ?? 360
+                angle: config.attackAngle ?? 360,
+                type: config.attackType ?? "melee",
+                projectileType: config.projectileType ?? null
             };
         }
 
@@ -600,9 +655,13 @@ export default class Player {
         } else {
             console.warn(`Attack animation not found for character: ${this.currentCharacter}`);
             // no animation -> apply immediately (fallback)
-            if (this._pendingAttack && this.onAttackHit) {
-                const { power, range, angle } = this._pendingAttack;
-                if (power > 0) this.onAttackHit(power, range, angle ?? 360);
+            if (this._pendingAttack && (this.onAttackHit || this.onFireProjectile)) {
+                const { power, range, angle, type, projectileType } = this._pendingAttack;
+                if (type === "ranged" && this.onFireProjectile && projectileType) {
+                    this._fireProjectile(projectileType, power, angle);
+                } else if (this.onAttackHit && power > 0) {
+                    this.onAttackHit(power, range, angle ?? 360);
+                }
                 this._pendingAttack = null;
                 this._pendingAttackTimer = 0;
             }
@@ -610,7 +669,8 @@ export default class Player {
         }
 
     }
-   useSkill() {
+
+    useSkill() {
 
         // allow using buff-type skills even while attacking (サポートスキルを攻撃と同時に行いたいため)
         if (this.isUsingSkill) return;
@@ -634,9 +694,11 @@ export default class Player {
             pending.angle = config.skillAngle ?? 360;
         }
         if (config?.skillBuff) {
-            // skillBuff: { stat: 'attack'|'defense', magnitude: 0.2, duration: seconds, source }
+            // skillBuff: { stat, magnitude, duration, source }
             pending.buff = config.skillBuff;
         }
+        pending.type = config?.skillType ?? "melee";
+        pending.projectileType = config?.projectileType ?? null;
 
         if (Object.keys(pending).length > 0) {
             this._pendingSkill = pending;
@@ -677,9 +739,11 @@ export default class Player {
             console.warn(`Skill animation not found for character: ${this.currentCharacter}`);
             // fallback: apply immediately (buffs and/or damage)
             if (this._pendingSkill) {
-                const { power, range, angle, buff } = this._pendingSkill;
+                const { power, range, angle, buff, type, projectileType } = this._pendingSkill;
                 if (buff) this.applyBuff(buff);
-                if (power > 0 && this.onSkillHit) {
+                if (type === "ranged" && this.onFireProjectile && projectileType) {
+                    this._fireProjectile(projectileType, power, angle);
+                } else if (power > 0 && this.onSkillHit) {
                     const { damageMul } = this.getComboMultipliers();
                     const attackBuffMul = this.getAttackBuffMultiplier();
                     const finalPower = power * damageMul * attackBuffMul;
@@ -691,6 +755,7 @@ export default class Player {
             this.isUsingSkill = false;
         }
     }
+
     // 追加：回避（Roll）
     roll() {
         if (this.isAttacking || this.isUsingSkill || this.isRolling) return;
