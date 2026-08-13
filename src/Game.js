@@ -4,6 +4,8 @@ import Player from "./Player.js";
 import Input from "./Input.js";
 import World from "./World.js";
 import UI from "./UI.js";
+// import部分
+import { Projectile } from "./Projectile.js";
 import { Enemy, ENEMY_CONFIGS } from "./Enemy.js";
 
 export default class Game {
@@ -12,7 +14,10 @@ export default class Game {
 
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x87ceeb);
-
+// constructor内
+// 複数敵を管理する配列
+this.enemies = [];
+this.projectiles = [];
         this.camera = new THREE.PerspectiveCamera(
             60,
             window.innerWidth / window.innerHeight,
@@ -193,7 +198,24 @@ export default class Game {
 
         // 通常攻撃ヒット判定
         this.player.onAttackHit = (power, range, angle) => _hitEnemiesInRange(power, range, angle);
+this.player.onFireProjectile = async ({ type, startPos, direction, power }) => {
+    const projectile = new Projectile(
+        this.scene,
+        type,
+        startPos,
+        direction,
+        power,
+        (enemy, damage) => {
+            if (!enemy?.isAlive || !enemy?.model) return;
+            enemy.takeDamage(damage, this.player.model?.position ?? null);
+        }
+    );
 
+    this.projectiles.push(projectile);
+    await projectile.load();
+
+    // ロード失敗などでモデルが作れなかった場合は次のフレームで回収
+};
         // スキルヒット判定
         this.player.onSkillHit  = (power, range, angle) => _hitEnemiesInRange(power, range, angle);
 
