@@ -73,9 +73,9 @@ export default class Player {
                 comboKnockbackStep: 0.2,
                 // 例: サポート向けのバフ定義（未使用のままでもOK）
                 // skillBuff: { stat: 'attack'|'defense', magnitude: 0.2, duration: 8 }
-                walkname="Walk_Loop",
-                runname="Sprint_Loop",
-        idlename="Idle_Loop"
+                walkname:"Walk_Loop",
+                runname:"Sprint_Loop",
+        idlename:"Idle_Loop"
             },
             "ShooterA": {
                 height: 1.8,
@@ -108,9 +108,9 @@ export default class Player {
                 // ノックバック増加倍率ステップ（1.0 が基準、累積は 1 + (comboCount-1)*comboKnockbackStep）
                 comboKnockbackStep: 0.25,
                 skillBuff: { stat: 'attack', magnitude: 0.1, duration: 8, source: 'ShooterA' },
-                walkname="Walk_Loop",
-                runname="Sprint_Loop",
-        idlename="Idle_Loop"
+                walkname:"Walk_Loop",
+                runname:"Sprint_Loop",
+        idlename:"Idle_Loop"
             },
             "ShooterB": {
                 height: 1.8,
@@ -143,9 +143,9 @@ export default class Player {
                 // ノックバック増加倍率ステップ（1.0 が基準、累積は 1 + (comboCount-1)*comboKnockbackStep）
                 comboKnockbackStep: 0.25,
                 skillBuff: { stat: 'attack', magnitude: 0.1, duration: 8, source: 'ShooterB' },
-                walkname="Walk_Loop",
-                runname="Sprint_Loop",
-        idlename="Idle_Loop"
+                walkname:"Walk_Loop",
+                runname:"Sprint_Loop",
+        idlename:"Idle_Loop"
             }, "Pen": {
                 height: 1.8,
                 scale: 1.0,
@@ -177,9 +177,9 @@ export default class Player {
                 // ノックバック増加倍率ステップ（1.0 が基準、累積は 1 + (comboCount-1)*comboKnockbackStep）
                 comboKnockbackStep: 0.25,
                 skillBuff: null,
-                walkname="Walk_Formal_Loop",
-                runname="Sprint_Loop",
-        idlename="Sows_Idle"
+                walkname:"Walk_Formal_Loop",
+                runname:"Sprint_Loop",
+        idlename:"Sows_Idle"
             }
             
         };
@@ -471,8 +471,8 @@ export default class Player {
         const dir = new THREE.Vector2(x, -y);
 
         if (dir.length() < 0.05) {
-const config = this.characterConfigs[idlename];
-            this.animation.play(config);
+const config = this.characterConfigs[currentCharacter];
+            this.animation.play(config.idlename);
 
             return;
 
@@ -483,12 +483,12 @@ const config = this.characterConfigs[idlename];
         if (dash) {
 
             speed = 6;
-const config = this.characterConfigs[runname];
-            this.animation.play(config);
+const config = this.characterConfigs[currentCharacter];
+            this.animation.play(config.runname);
 
         } else {
-const config = this.characterConfigs[walkname];
-            this.animation.play(config);
+const config = this.characterConfigs[currentCharacter];
+            this.animation.play(config.walkname);
 
         }
         dir.normalize();
