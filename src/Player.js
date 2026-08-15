@@ -179,7 +179,7 @@ export default class Player {
                 skillBuff: null,
                 walkname:"Walk_Formal_Loop",
                 runname:"Sprint_Loop",
-        idlename:"Sows_Idle"
+        idlename:"Sowd_Idle"
             }
             
         };
@@ -457,76 +457,63 @@ export default class Player {
 
     move(x, y, delta, cameraYaw, dash = false) {
 
-        if (!this.model) return;
+    if (!this.model) return;
 
-        // ロール中は入力でアニメーションを上書きしない
-        if (this.isRolling) return;
+    // ロール中は入力でアニメーションを上書きしない
+    if (this.isRolling) return;
 
-        // 攻撃・スキル中に移動アニメーションで上書きしない
-        if (this.isAttacking || this.isUsingSkill) return;
+    // 攻撃・スキル中は移動しない
+    if (this.isAttacking || this.isUsingSkill) return;
 
-        // ノックバック中は移動入力を無視（ノックバック移動のみ）
-        if (this.isKnockedBack) return;
+    // ノックバック中は通常移動しない
+    if (this.isKnockedBack) return;
 
-        const dir = new THREE.Vector2(x, -y);
+    const dir = new THREE.Vector2(x, -y);
 
-        if (dir.length() < 0.05) {
-const config = this.characterConfigs[currentCharacter];
-            this.animation.play(config.idlename);
+    // 現在のキャラクター設定を取得
+    const config = this.characterConfigs[this.currentCharacter];
 
-            return;
+    if (!config) return;
 
-        }
-
-        let speed = this.speed;
-
-        if (dash) {
-
-            speed = 6;
-const config = this.characterConfigs[currentCharacter];
-            this.animation.play(config.runname);
-
-        } else {
-const config = this.characterConfigs[currentCharacter];
-            this.animation.play(config.walkname);
-
-        }
-        dir.normalize();
-
-        // カメラ基準の角度
-        const angle = Math.atan2(dir.x, dir.y) + cameraYaw;
-
-        this.rotation = THREE.MathUtils.lerp(
-
-            this.rotation,
-
-            angle,
-
-            this.turnSpeed * delta
-
-        );
-
-        this.model.rotation.y = this.rotation;
-
-        const forward = new THREE.Vector3(
-
-            Math.sin(this.rotation),
-
-            0,
-
-            Math.cos(this.rotation)
-
-        );
-
-        this.model.position.addScaledVector(
-
-            forward,
-
-            speed * delta
-
-        );
-
+    // 入力がない場合
+    if (dir.length() < 0.05) {
+        this.animation.play(config.idlename);
+        return;
     }
+
+    let speed = this.speed;
+
+    if (dash) {
+        speed = 6;
+        this.animation.play(config.runname);
+    } else {
+        this.animation.play(config.walkname);
+    }
+
+    dir.normalize();
+
+    // カメラ基準の角度
+    const angle = Math.atan2(dir.x, dir.y) + cameraYaw;
+
+    this.rotation = THREE.MathUtils.lerp(
+        this.rotation,
+        angle,
+        this.turnSpeed * delta
+    );
+
+    this.model.rotation.y = this.rotation;
+
+    const forward = new THREE.Vector3(
+        Math.sin(this.rotation),
+        0,
+        Math.cos(this.rotation)
+    );
+
+    this.model.position.addScaledVector(
+        forward,
+        speed * delta
+    );
+}
 
     // ── ノックバック処理 ──────────────────────────────────────────
     _applyKnockback(attackerPos) {
