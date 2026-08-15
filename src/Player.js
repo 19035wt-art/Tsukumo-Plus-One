@@ -495,11 +495,12 @@ export default class Player {
     // カメラ基準の角度
     const angle = Math.atan2(dir.x, dir.y) + cameraYaw;
 
-    this.rotation = THREE.MathUtils.lerp(
-        this.rotation,
-        angle,
-        this.turnSpeed * delta
-    );
+    // 角度を最短経路で補間する（-πとπの境界をまたぐと通常のlerpは
+    // 逆回りしてしまい、ほとんど回転が進まず「固まって見える」原因になる）
+    let diff = angle - this.rotation;
+    diff = ((diff + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
+
+    this.rotation += diff * Math.min(1, this.turnSpeed * delta);
 
     this.model.rotation.y = this.rotation;
 
