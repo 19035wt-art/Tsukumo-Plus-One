@@ -138,16 +138,16 @@ export default class Player {
             }, "Pen": {
                 height: 1.8,
                 scale: 1.0,
-                attackAnim: "Punch_Cross",
-                skillAnim: "OverhandThrow",
-                skillCooldownMax: 5,
+                attackAnim: "Sowd_Attack",
+                skillAnim: "Sowd_Regral_C",
+                skillCooldownMax: 7,
                 attackPower: 20,
                 attackRange: 2.5,
-                attackAngle: 80,   // 正面±40°の扇形
+                attackAngle: 100,   // 正面±40°の扇形
                 attackType: "melee",  // 通常攻撃は近接
-                skillPower: 30,
-                skillRange: 5.0,
-                skillAngle: 120,   // 正面±60°の扇形（スキルは広め）
+                skillPower: 35,
+                skillRange: 6.0,
+                skillAngle: 160,   // 正面±60°の扇形（スキルは広め）
                 skillType: "melee", 
                 projectileType: null, // 発射する飛び道具
                 // 回避設定（例）
@@ -159,13 +159,13 @@ export default class Player {
                 attackAnimSpeed: 2.0,
                 skillAnimSpeed: 1.5,
                 // コンボ設定
-                comboMax: 4,
+                comboMax: 3,
                 comboTimeout: 1.6,
                 // ダメージ増加（1ヒット目は増加なし。2ヒット目以降は (comboCount-1)*comboDamageStep が乗る）
-                comboDamageStep: 0.18,
+                comboDamageStep: 0,
                 // ノックバック増加倍率ステップ（1.0 が基準、累積は 1 + (comboCount-1)*comboKnockbackStep）
                 comboKnockbackStep: 0.25,
-                skillBuff: { stat: 'attack', magnitude: 0.1, duration: 8, source: 'ShooterA' },
+                skillBuff: null,
             }
             
         };
