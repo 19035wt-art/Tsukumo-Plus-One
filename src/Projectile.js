@@ -9,9 +9,9 @@ export const PROJECTILE_CONFIGS = {
     "bullet": {
         modelPath: "/models/Bullet.glb",
         speed: 20,           // m/s
-        lifetime: 5,         // 秒
-        scale: 1.0,
-        collisionRadius: 0.5,
+        lifetime: 0.5,         // 秒
+        scale: 0.03,
+        collisionRadius: 1,
         trailEnabled: false,
     },
     "icebolt": {
@@ -58,7 +58,7 @@ export class Projectile {
 
         const config = PROJECTILE_CONFIGS[type] || {};
         this.speed = config.speed ?? 20;
-        this.lifetime = config.lifetime ?? 5;
+        this.lifetime = config.lifetime ?? 4;
         this.collisionRadius = config.collisionRadius ?? 0.5;
         this.trailEnabled = config.trailEnabled ?? false;
 

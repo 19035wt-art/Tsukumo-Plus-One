@@ -107,8 +107,8 @@ export default class Player {
             "ShooterB": {
                 height: 1.8,
                 scale: 1.0,
-                attackAnim: "Pistol_Shot",
-                skillAnim: "Pistol_Shot",
+                attackAnim: "Pistol_Shoot",
+                skillAnim: "Pistol_Shoot",
                 skillCooldownMax: 5,
                 attackPower: 10,
                 attackRange: 2.5,
@@ -125,8 +125,8 @@ export default class Player {
                 rollSpeed: 8, // ロール時の速度（m/s 相当）
                 rollDuration: 0.4, // ロール継続時間（秒）
                 // アニメーション速度（必要に応じて調整）
-                attackAnimSpeed: 2.0,
-                skillAnimSpeed: 1.5,
+                attackAnimSpeed: 1,
+                skillAnimSpeed: 1.2,
                 // コンボ設定
                 comboMax: 4,
                 comboTimeout: 1.6,
