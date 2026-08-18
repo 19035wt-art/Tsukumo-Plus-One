@@ -148,9 +148,9 @@ export default class Player {
         idlename:"Idle_Loop"
             }, "Pen": {
                 height: 1.8,
-                scale: 1.0,
-                attackAnim: "Sowd_Attack",
-                skillAnim: "Sowd_Regral_C",
+                scale: 1,
+                attackAnim: "Sword_Attack",
+                skillAnim: "Sword_Regral_C",
                 skillCooldownMax: 7,
                 attackPower: 20,
                 attackRange: 2.5,
@@ -179,7 +179,7 @@ export default class Player {
                 skillBuff: null,
                 walkname:"Walk_Formal_Loop",
                 runname:"Sprint_Loop",
-        idlename:"Sowd_Idle"
+        idlename:"Sword_Idle"
             }
             
         };
