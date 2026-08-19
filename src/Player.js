@@ -147,12 +147,12 @@ export default class Player {
                 runname:"Sprint_Loop",
         idlename:"Idle_Loop"
             }, "Pen": {
-                height: 1.8,
-                scale: 1,
+                height: 1.5,
+                scale: 0.8,
                 attackAnim: "Sword_Attack",
-                skillAnim: "Sword_Regral_C",
+                skillAnim: "Sword_Regular_C",
                 skillCooldownMax: 7,
-                attackPower: 20,
+                attackPower: 15,
                 attackRange: 2.5,
                 attackAngle: 100,   // 正面±40°の扇形
                 attackType: "melee",  // 通常攻撃は近接
@@ -165,7 +165,7 @@ export default class Player {
                 rollAnim: "Roll",
                 rollCooldownMax: 3, // 秒
                 rollSpeed: 8, // ロール時の速度（m/s 相当）
-                rollDuration: 0.4, // ロール継続時間（秒）
+                rollDuration: 0.6, // ロール継続時間（秒）
                 // アニメーション速度（必要に応じて調整）
                 attackAnimSpeed: 2.0,
                 skillAnimSpeed: 1.5,
@@ -238,6 +238,19 @@ export default class Player {
                 }
 
                 this.model = gltf.scene;
+const gltf = await loader.loadAsync(path);
+
+const visualModel = gltf.scene;
+
+this.model = new THREE.Group();
+this.model.add(visualModel);
+
+if (character === "Pen") {
+    visualModel.position.z = -3.2936075;
+}
+
+// 位置補正用の親Group
+
                 this.currentCharacter = character;
                 this.currentHealth = this.maxHealth;
                 this.isAlive = true;
