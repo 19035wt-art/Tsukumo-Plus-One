@@ -13,6 +13,8 @@ export default class UI {
         this.onAttack = null;
         this.onSkill = null;
         this.onRoll = null; // 追加
+        this.buffContainer = null;
+        this._buffSignature = "";
     }
 
     createHealthBar() {
@@ -68,6 +70,22 @@ export default class UI {
         document.body.appendChild(container);
 
         this.healthBarContainer = container;
+
+        // HPバーの下に現在のバフを表示する領域
+        const buffContainer = document.createElement("div");
+        buffContainer.id = "buff-container";
+        buffContainer.style.position = "fixed";
+        buffContainer.style.top = "62px";
+        buffContainer.style.left = "20px";
+        buffContainer.style.width = "250px";
+        buffContainer.style.minHeight = "40px";
+        buffContainer.style.display = "none";
+        buffContainer.style.flexWrap = "wrap";
+        buffContainer.style.gap = "6px";
+        buffContainer.style.zIndex = "100";
+        buffContainer.style.pointerEvents = "none";
+        document.body.appendChild(buffContainer);
+        this.buffContainer = buffContainer;
     }
 
     createAttackButton() {
@@ -282,6 +300,68 @@ export default class UI {
         this.rollCooldownText.textContent = Math.ceil(current) + "s";
     }
 
+    updateBuffs(buffs = []) {
+        if (!this.buffContainer) return;
+
+        const signature = buffs.map((b) =>
+            `${b.id}:${b.name}:${Math.ceil(b.remaining ?? 0)}`
+        ).join("|");
+
+        if (signature === this._buffSignature) return;
+        this._buffSignature = signature;
+        this.buffContainer.replaceChildren();
+
+        for (const buff of buffs) {
+            const item = document.createElement("div");
+            item.style.width = "34px";
+            item.style.height = "34px";
+            item.style.border = "1px solid rgba(255,255,255,0.8)";
+            item.style.borderRadius = "5px";
+            item.style.background = "rgba(0,0,0,0.65)";
+            item.style.position = "relative";
+            item.title = buff.name;
+
+            if (buff.icon) {
+                const icon = document.createElement("img");
+                icon.src = buff.icon;
+                icon.alt = buff.name;
+                icon.style.width = "100%";
+                icon.style.height = "100%";
+                icon.style.objectFit = "cover";
+                icon.style.borderRadius = "4px";
+                item.appendChild(icon);
+            } else {
+                const fallback = document.createElement("span");
+                fallback.textContent = (buff.name || "?").slice(0, 1);
+                fallback.style.width = "100%";
+                fallback.style.height = "100%";
+                fallback.style.display = "flex";
+                fallback.style.alignItems = "center";
+                fallback.style.justifyContent = "center";
+                fallback.style.color = "#fff";
+                fallback.style.fontWeight = "bold";
+                item.appendChild(fallback);
+            }
+
+            if (Number.isFinite(buff.remaining)) {
+                const time = document.createElement("span");
+                time.textContent = Math.ceil(buff.remaining);
+                time.style.position = "absolute";
+                time.style.right = "-3px";
+                time.style.bottom = "-3px";
+                time.style.padding = "1px 3px";
+                time.style.background = "rgba(0,0,0,0.85)";
+                time.style.color = "#fff";
+                time.style.fontSize = "10px";
+                time.style.borderRadius = "3px";
+                item.appendChild(time);
+            }
+            this.buffContainer.appendChild(item);
+        }
+
+        this.buffContainer.style.display = buffs.length ? "flex" : "none";
+    }
+
     updateHealthBar(health, maxHealth) {
         if (!this.healthBarContainer) return;
 
@@ -316,6 +396,7 @@ export default class UI {
             if (this.healthBarContainer) {
                 this.healthBarContainer.style.display = "block";
             }
+            if (this.buffContainer) this.buffContainer.style.display = this.buffContainer.childElementCount ? "flex" : "none";
             if (this.attackButton) this.attackButton.style.display = "block";
             if (this.skillButton) this.skillButton.style.display = "block";
             if (this.rollButton) this.rollButton.style.display = "block";
@@ -324,6 +405,7 @@ export default class UI {
             if (this.healthBarContainer) {
                 this.healthBarContainer.style.display = "none";
             }
+            if (this.buffContainer) this.buffContainer.style.display = "none";
             if (this.attackButton) this.attackButton.style.display = "none";
             if (this.skillButton) this.skillButton.style.display = "none";
             if (this.rollButton) this.rollButton.style.display = "none";
