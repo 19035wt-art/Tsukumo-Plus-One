@@ -107,7 +107,7 @@ export default class Player {
                 comboDamageStep: 0.18,
                 // ノックバック増加倍率ステップ（1.0 が基準、累積は 1 + (comboCount-1)*comboKnockbackStep）
                 comboKnockbackStep: 0.25,
-                skillBuff: { stat: 'attack', magnitude: 0.1, duration: 8, source: 'ShooterA' },
+                skillBuff: { name: '攻撃力アップ', duration: 8, effects: { attack: 0.1 }, source: 'ShooterA' },
                 walkname:"Walk_Loop",
                 runname:"Sprint_Loop",
         idlename:"Idle_Loop"
@@ -142,7 +142,7 @@ export default class Player {
                 comboDamageStep: 0.18,
                 // ノックバック増加倍率ステップ（1.0 が基準、累積は 1 + (comboCount-1)*comboKnockbackStep）
                 comboKnockbackStep: 0.25,
-                skillBuff: { stat: 'attack', magnitude: 0.1, duration: 8, source: 'ShooterB' },
+                skillBuff: { name: '攻撃力アップ', duration: 8, effects: { attack: 0.1 }, source: 'ShooterB' },
                 walkname:"Walk_Loop",
                 runname:"Sprint_Loop",
         idlename:"Idle_Loop"
@@ -640,17 +640,40 @@ this._rollTimer = 0;
 
     // バフ管理ユーティリティ
     applyBuff(buff) {
-        // buff: { stat: 'attack'|'defense', magnitude: 0.2, duration: seconds, source }
-        if (!buff || !buff.stat || !buff.magnitude || !buff.duration) return null;
-        const id = (Date.now().toString(36) + Math.random().toString(36).slice(2,8));
-        const b = {
+        // 名前で管理する汎用バフ。
+        // 例: { name: "攻撃力アップ", icon: "/ui/buffs/attack_up.png",
+        //       duration: 8, effects: { attack: 0.2 } }
+        // 旧形式 { stat, magnitude } も互換用に受け付ける。
+        if (!buff || !buff.name && !buff.stat) return null;
+
+        const name = buff.name || buff.source || buff.stat;
+        const duration = Number(buff.duration ?? 0);
+        if (duration <= 0) return null;
+
+        const effects = buff.effects
+            ? { ...buff.effects }
+            : (buff.stat ? { [buff.stat]: Number(buff.magnitude ?? 0) } : {});
+
+        const existing = this.buffs.find(b => b.name === name);
+        if (existing) {
+            existing.remaining = duration;
+            existing.duration = duration;
+            existing.icon = buff.icon ?? existing.icon ?? null;
+            existing.effects = effects;
+            existing.source = buff.source ?? existing.source ?? null;
+            return existing.id;
+        }
+
+        const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+        this.buffs.push({
             id,
-            stat: buff.stat,
-            magnitude: buff.magnitude,
-            remaining: buff.duration,
-            source: buff.source || null
-        };
-        this.buffs.push(b);
+            name,
+            icon: buff.icon ?? null,
+            effects,
+            duration,
+            remaining: duration,
+            source: buff.source ?? null
+        });
         return id;
     }
 
@@ -662,16 +685,16 @@ this._rollTimer = 0;
     // 与ダメージに乗る攻撃力バフの合算倍率を返す（例: +20% -> 1.2）
     getAttackBuffMultiplier() {
         if (!this.buffs || this.buffs.length === 0) return 1.0;
-        const sum = this.buffs.filter(b => b.stat === 'attack')
-            .reduce((s, b) => s + (b.magnitude || 0), 0);
+        const sum = this.buffs
+            .reduce((s, b) => s + Number(b.effects?.attack ?? 0), 0);
         return 1 + sum;
     }
 
     // 防御バフの合算（ダメージ軽減値 0.0 - 0.9 を想定）
     getDefenseReduction() {
         if (!this.buffs || this.buffs.length === 0) return 0.0;
-        const sum = this.buffs.filter(b => b.stat === 'defense')
-            .reduce((s, b) => s + (b.magnitude || 0), 0);
+        const sum = this.buffs
+            .reduce((s, b) => s + Number(b.effects?.defense ?? 0), 0);
         // 上限を設けて最大 90% 軽減までにする
         return Math.min(0.9, sum);
     }
