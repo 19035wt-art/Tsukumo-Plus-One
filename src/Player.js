@@ -107,7 +107,7 @@ export default class Player {
                 comboDamageStep: 0.18,
                 // ノックバック増加倍率ステップ（1.0 が基準、累積は 1 + (comboCount-1)*comboKnockbackStep）
                 comboKnockbackStep: 0.25,
-                skillBuff: { name: '攻撃力アップ', duration: 8, effects: { attack: 0.1 }, source: 'ShooterA' },
+                skillBuff: { name: '攻撃力アップ', icon:"/ui/buffs/attack_up.png",duration: 8, effects: { attack: 0.1 } },
                 walkname:"Walk_Loop",
                 runname:"Sprint_Loop",
         idlename:"Idle_Loop"
@@ -142,7 +142,7 @@ export default class Player {
                 comboDamageStep: 0.18,
                 // ノックバック増加倍率ステップ（1.0 が基準、累積は 1 + (comboCount-1)*comboKnockbackStep）
                 comboKnockbackStep: 0.25,
-                skillBuff: { name: '攻撃力アップ', duration: 8, effects: { attack: 0.1 }, source: 'ShooterB' },
+                skillBuff: { name: '攻撃力アップ',icon:"/ui/buffs/attack_up.png", duration: 8, effects: { attack: 0.1 }},
                 walkname:"Walk_Loop",
                 runname:"Sprint_Loop",
         idlename:"Idle_Loop"
@@ -783,7 +783,7 @@ this._rollTimer = 0;
 
         // allow using buff-type skills even while attacking (サポートスキルを攻撃と同時に行いたいため)
         if (this.isAttacking || this.isUsingSkill || this.isRolling) return;
-
+if (this.skillCooldown)return;
         this.isUsingSkill = true;
 
         // configからクールタイムを取得してセット
