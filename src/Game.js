@@ -244,6 +244,10 @@ this.player.onFireProjectile = async ({ type, startPos, direction, power }) => {
             this.player.maxHealth
         );
 
+        this.ui.updateBuffs(
+            this.player.buffs
+        );
+
     }
 
     handleAttack() {
@@ -325,6 +329,11 @@ if (this.projectiles.length) {
         this.ui.updateHealthBar(
             this.player.currentHealth,
             this.player.maxHealth
+        );
+
+        // HPバーの下にバフ一覧を表示
+        this.ui.updateBuffs(
+            this.player.buffs
         );
 
         // スキルとロールのクールタイム表示を更新
