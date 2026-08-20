@@ -238,7 +238,6 @@ export default class Player {
                 }
 
                 this.model = gltf.scene;
-const gltf = await loader.loadAsync(path);
 
 const visualModel = gltf.scene;
 
@@ -254,7 +253,15 @@ if (character === "Pen") {
                 this.currentCharacter = character;
                 this.currentHealth = this.maxHealth;
                 this.isAlive = true;
-
+// 追加：行動状態を完全リセット（キャラ切り替え時に前キャラの状態が残るのを防ぐ）
+this.isAttacking = false;
+this.isUsingSkill = false;
+this.isRolling = false;
+this._pendingAttack = null;
+this._pendingSkill = null;
+this._pendingAttackTimer = 0;
+this._pendingSkillTimer = 0;
+this._rollTimer = 0;
                 // ノックバックをリセット
                 this.knockbackVelocity.set(0, 0, 0);
                 this.isKnockedBack = false;
@@ -299,7 +306,7 @@ if (character === "Pen") {
 
                 this.animation = new Animation(this.actions);
 
-                this.animation.play("Idle_Loop");
+                this.animation.play(this.characterConfigs[this.currentCharacter]?.idlename ?? "Idle_Loop");
 
                 this.mixer.addEventListener("finished", (e) => {
                     let clipName = null;
@@ -681,7 +688,7 @@ if (character === "Pen") {
 
     attack() {
 
-        if (this.isAttacking || this.isUsingSkill) return;
+        if (this.isAttacking || this.isUsingSkill || this.isRolling) return;
 
         this.isAttacking = true;
 
@@ -752,9 +759,7 @@ if (character === "Pen") {
     useSkill() {
 
         // allow using buff-type skills even while attacking (サポートスキルを攻撃と同時に行いたいため)
-        if (this.isUsingSkill) return;
-
-        if (this.skillCooldown > 0) return;
+        if (this.isAttacking || this.isUsingSkill || this.isRolling) return;
 
         this.isUsingSkill = true;
 
