@@ -409,6 +409,7 @@ this._rollTimer = 0;
                     const attackBuffMul = this.getAttackBuffMultiplier();
                     const finalPower = power * damageMul * attackBuffMul;
                     this.onAttackHit(finalPower, range, angle ?? 360);
+                    this.recordSuccessfulHit();
                 }
                 this._pendingAttack = null;
                 this._pendingAttackTimer = 0;
@@ -436,9 +437,12 @@ this._rollTimer = 0;
                     // 近接スキル：通常のダメージ判定
                     const { damageMul } = this.getComboMultipliers();
                     const attackBuffMul = this.getAttackBuffMultiplier();
-                    const finalPower = power * damageMul * attackBuffMul;
+                    const skillBuffMul = this.getSkillDamageBuffMultiplier();
+                    const finalPower = power * damageMul * attackBuffMul * skillBuffMul;
                     this.onSkillHit(finalPower, range, angle ?? 360);
                 }
+                // 燕返し等の消費型バフはスキル使用のたびに消費する
+                this.consumeSkillBuffs();
                 this._pendingSkill = null;
                 this._pendingSkillTimer = 0;
             }
@@ -661,6 +665,7 @@ this._rollTimer = 0;
             existing.icon = buff.icon ?? existing.icon ?? null;
             existing.effects = effects;
             existing.source = buff.source ?? existing.source ?? null;
+            existing.consumeOnSkill = buff.consumeOnSkill ?? existing.consumeOnSkill ?? false;
             return existing.id;
         }
 
@@ -672,7 +677,8 @@ this._rollTimer = 0;
             effects,
             duration,
             remaining: duration,
-            source: buff.source ?? null
+            source: buff.source ?? null,
+            consumeOnSkill: buff.consumeOnSkill ?? false
         });
         return id;
     }
@@ -688,6 +694,22 @@ this._rollTimer = 0;
         const sum = this.buffs
             .reduce((s, b) => s + Number(b.effects?.attack ?? 0), 0);
         return 1 + sum;
+    }
+
+    // スキルダメージに乗る「消費型」バフ（燕返し等）の合算倍率を返す
+    // 通常攻撃には影響させない：スキル使用時にのみ参照し、使用後に消費（削除）する
+    getSkillDamageBuffMultiplier() {
+        if (!this.buffs || this.buffs.length === 0) return 1.0;
+        const sum = this.buffs
+            .filter(b => b.consumeOnSkill)
+            .reduce((s, b) => s + Number(b.effects?.skillDamage ?? 0), 0);
+        return 1 + sum;
+    }
+
+    // スキル使用時に消費されるバフ（燕返し等）を取り除く
+    consumeSkillBuffs() {
+        if (!this.buffs || this.buffs.length === 0) return;
+        this.buffs = this.buffs.filter(b => !b.consumeOnSkill);
     }
 
     // 防御バフの合算（ダメージ軽減値 0.0 - 0.9 を想定）
@@ -727,6 +749,18 @@ this._rollTimer = 0;
                 type: config.attackType ?? "melee",
                 projectileType: config.projectileType ?? null
             };
+        }
+
+        // Pen専用：コンボの終段（3段目）を繰り出す瞬間に「燕返し」バフを付与する
+        // （comboCount は直前までのヒット数。2 の時点＝これから3段目を出す = 終段）
+        if (this.currentCharacter === "Pen" && this.comboCount === 2) {
+            this.applyBuff({
+                name: "燕返し",
+                icon: "/ui/buffs/wing.png",
+                duration: 8,
+                consumeOnSkill: true,          // スキル使用時に消費される
+                effects: { skillDamage: 0.2 }  // スキルダメージ+20%（通常攻撃には影響しない）
+            });
         }
 
         // configから攻撃アニメーション名を取得
@@ -772,14 +806,11 @@ this._rollTimer = 0;
                     this._fireProjectile(projectileType, power, angle);
                 } else if (this.onAttackHit && power > 0) {
                     this.onAttackHit(power, range, angle ?? 360);
+                    this.recordSuccessfulHit();
                 }
                 this._pendingAttack = null;
                 this._pendingAttackTimer = 0;
             }
-               if (character == "Pen" && this.comboCount == 2){
-this.applyBuff({name: "燕返し", icon: "/ui/buffs/wing.png",duration: 8, effects:{attack: 0.2}})
-       
-}
             this.isAttacking = false;
         }
 
@@ -859,9 +890,12 @@ if (this.skillCooldown)return;
                 } else if (power > 0 && this.onSkillHit) {
                     const { damageMul } = this.getComboMultipliers();
                     const attackBuffMul = this.getAttackBuffMultiplier();
-                    const finalPower = power * damageMul * attackBuffMul;
+                    const skillBuffMul = this.getSkillDamageBuffMultiplier();
+                    const finalPower = power * damageMul * attackBuffMul * skillBuffMul;
                     this.onSkillHit(finalPower, range, angle ?? 360);
                 }
+                // 燕返し等の消費型バフはスキル使用のたびに消費する
+                this.consumeSkillBuffs();
                 this._pendingSkill = null;
                 this._pendingSkillTimer = 0;
             }
