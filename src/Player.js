@@ -707,10 +707,7 @@ this._rollTimer = 0;
 
         this.comboCount = Math.min(comboMax, this.comboCount + 1);
         this._comboTimer = timeout;
-        if (character == "Pen" && this.comboCount == 2){
-this.applyBuff({name: "燕返し", icon: "/ui/buffs/wing.png",duration: 8, effects:{attack: 0.2}})
-       
-}
+   
     }
 
     attack() {
@@ -765,6 +762,10 @@ this.applyBuff({name: "燕返し", icon: "/ui/buffs/wing.png",duration: 8, effec
             const effectiveDuration = duration / (animSpeed || 1);
             const hitFraction = 0.5; // midpoint of animation
             this._pendingAttackTimer = effectiveDuration * hitFraction;
+                 if (character == "Pen" && this.comboCount == 2){
+this.applyBuff({name: "燕返し", icon: "/ui/buffs/wing.png",duration: 8, effects:{attack: 0.2}})
+       
+}
         } else {
             console.warn(`Attack animation not found for character: ${this.currentCharacter}`);
             // no animation -> apply immediately (fallback)
