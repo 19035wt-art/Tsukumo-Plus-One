@@ -107,7 +107,7 @@ export default class Player {
                 comboDamageStep: 0.18,
                 // ノックバック増加倍率ステップ（1.0 が基準、累積は 1 + (comboCount-1)*comboKnockbackStep）
                 comboKnockbackStep: 0.25,
-                skillBuff: { name: '攻撃力アップ', icon:"/ui/buffs/attack_up.png",duration: 8, effects: { attack: 0.1 } },
+                skillBuff: { name: '攻撃力アップ', icon:"/ui/buffs/attack_up.png",duration: 2, effects: { attack: 0.2 } },
                 walkname:"Walk_Loop",
                 runname:"Sprint_Loop",
         idlename:"Idle_Loop"
@@ -142,7 +142,7 @@ export default class Player {
                 comboDamageStep: 0.18,
                 // ノックバック増加倍率ステップ（1.0 が基準、累積は 1 + (comboCount-1)*comboKnockbackStep）
                 comboKnockbackStep: 0.25,
-                skillBuff: { name: '攻撃力アップ',icon:"/ui/buffs/attack_up.png", duration: 8, effects: { attack: 0.1 }},
+                skillBuff: { name: '攻撃力アップ',icon:"/ui/buffs/attack_up.png", duration: 2, effects: { attack: 0.2 }},
                 walkname:"Walk_Loop",
                 runname:"Sprint_Loop",
         idlename:"Idle_Loop"
@@ -707,6 +707,10 @@ this._rollTimer = 0;
 
         this.comboCount = Math.min(comboMax, this.comboCount + 1);
         this._comboTimer = timeout;
+        if (character == "Pen" && this.comboCount == 2){
+this.applyBuff({name: "燕返し", icon: "/ui/buffs/wing.png",duration: 8, effects:{attack: 0.2}})
+       
+}
     }
 
     attack() {
